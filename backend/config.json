@@ -1,0 +1,21 @@
+{
+    "base": {
+        "userUID": "000000000000000000000",
+        "name": "Tobi",
+        "gender": "female",
+        "gender-user": "male",
+        "language": "EN-US",
+        "memory_size": 3,
+        "style_en": "good friend",
+        "tts-method": "google_tts"
+    },
+    "recording_settings": {
+        "buffer_length_seconds": 30,
+        "sample_rate": 16000,
+        "chunk_size": 1024,
+        "activation_threshold": 700,
+        "deactivation_threshold": 300,
+        "activation_window": 8000,
+        "deactivation_window": 50000
+    }
+}

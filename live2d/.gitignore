@@ -1,0 +1,20 @@
+# Core directory files
+/Core/**/.js
+/Core/**/.ts
+# Package files
+node_modules/
+# Build files
+build/
+dist/
+# Other files
+temp/
+.vs/
+.idea/
+*.iml
+.DS_Store
+# Exclude some VSCode setting files.
+.vscode/*
+!/.vscode/extensions.json
+!/.vscode/launch.json
+!/.vscode/settings.json
+!/.vscode/tasks.json

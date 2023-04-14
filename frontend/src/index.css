@@ -1,0 +1,14 @@
+/**@import '../node_modules/mini.css/dist/mini-default.min.css';*/
+
+.pageHeader {
+    padding: 20px;
+}
+
+.live2diframe {
+    pointer-events: none;
+    clip-path: polygon(0% 0%, 100% 0%, 100% 40%, 0% 40%);
+}
+
+.charlieBackgroundTextBox {
+    pointer-events: none;
+}
