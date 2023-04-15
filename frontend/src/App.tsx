@@ -67,9 +67,7 @@ function App() {
   const divRef = useRef(null);
   const [userObject, setUserObject] = useState<IUserObject | undefined>();
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
-  const [hasUserAccess, setHasUserAccess] = useState<boolean | undefined>(
-    undefined
-  );
+  const [hasUserAccess, setHasUserAccess] = useState<boolean | undefined>(undefined);
   const [hasUserRequestedAccess, setHasUserRequestedAccess] = useState<boolean>(false);
   const [error, setError] = useState<string | undefined>(undefined);
 
