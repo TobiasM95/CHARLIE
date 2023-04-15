@@ -327,8 +327,9 @@ class Charlie:
     def _post_process_text_output(self, output_text):
         # Post processing of conversation text output to make it sound more natural
         print("DEBUG: Output string raw:", output_text)
+        processed_output_text = output_text.replace("\n", " ")
         processed_output_text = re.sub(
-            f"(?<=[\w])[\W]*\s{self.name}(?=\W)", "", output_text
+            f"(?<=[\w])[\W]*\s{self.name}(?=\W)", "", processed_output_text
         )
         processed_output_text = re.sub(f"^{self.name}\W\s+", "", processed_output_text)
         processed_output_text = re.sub(f'^{self.name}:\s+"', "", processed_output_text)

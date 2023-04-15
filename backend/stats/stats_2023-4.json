@@ -1,14 +1,14 @@
 {
     "whisper_minutes": 0.20000000000000004,
-    "chatgpt_tokens": 74818,
-    "deepl_characters": 0,
-    "google_tts_character": 8520,
+    "chatgpt_tokens": 77570,
+    "deepl_character": 544,
+    "google_tts_character": 9768,
     "whisper_cost": 0.0012000000000000003,
-    "chatgpt_cost": 0.149636,
-    "deepl_percentage_used": 0,
-    "google_tts_percentage_used": 0.00852,
+    "chatgpt_cost": 0.15514000000000003,
+    "deepl_percentage_used": 0.001088,
+    "google_tts_percentage_used": 0.009768,
     "google_tts_cost": 0.0,
-    "elevenlabs_tts_character": 3175,
-    "elevenlabs_tts_percentage_used": 0.3175,
+    "elevenlabs_tts_character": 3853,
+    "elevenlabs_tts_percentage_used": 0.3853,
     "elevenlabs_tts_limit": 10000
 }

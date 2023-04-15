@@ -462,7 +462,7 @@ class Logger:
             # usage info
             "whisper_minutes": 0,
             "chatgpt_tokens": 0,
-            "deepl_characters": 0,
+            "deepl_character": 0,
             "google_tts_character": 0,
             "elevenlabs_tts_character": 0,
             # pricing info
@@ -1160,7 +1160,7 @@ def get_conversation_prompt_chat_gpt(
     )
 
     if language not in mood.style or language not in mood.style_example:
-        mood.translate_style(translation_model)
+        mood.translate_style(translation_model, language)
     mood_style = mood.style[language]
     style_example = mood.style_example[language]
     message_length = mood.get_message_length(text)
@@ -1181,7 +1181,7 @@ def get_conversation_prompt_chat_gpt(
             },
         ]
     elif language == Language.GERMAN:
-        [
+        prompt += [
             {
                 "role": "system",
                 "content": "Du bist eine Engine zur Vervollständigung von Dialogen und Stilen.",
@@ -1231,5 +1231,8 @@ def extract_prompt_answers(full_answer):
     # )[0].strip()
     answer_dict["raw"] = None
     answer_dict["clean"] = None
-    answer_dict["style"] = re.search("(?<=Charlie:)[\w\W\s]*", full_answer)[0].strip()
+    extracted_answer = re.search("(?<=Charlie:)[\w\W\s]*", full_answer)
+    answer_dict["style"] = (
+        extracted_answer[0] if extracted_answer is not None else full_answer
+    ).strip()
     return answer_dict
