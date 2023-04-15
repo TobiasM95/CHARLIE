@@ -76,12 +76,7 @@ I'm no expert with Node.js and npm. I cannot tell you if any version deviation b
     }
 }
 ```
-10. Create a file called `gis_client_id.json` inside the `frontend/src/Settings/` directory and paste the following inside (check requirements for more information). **You don't need to have a valid GIS client id but this file and the object need to exist either way. If you don't want to use the Google login then paste the code below as is without replacing the content**:
-```json
-{
-    "client_id": "YOUR-GIS-CLIENT-ID"
-}
-```
+10. OPTIONAL: Inside the file `frontend/src/Settings/gis_client_id.json` enter your GIS client id (check requirements for more information).
 11. OPTIONAL: Copy your Google Cloud key file in the `backend` directory
 
 
