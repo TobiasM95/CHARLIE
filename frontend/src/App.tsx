@@ -30,8 +30,7 @@ declare module "@mui/material/Button" {
 export type THEMENAME = "DARK" | "LIGHT";
 const { palette } = createTheme();
 const { augmentColor } = palette;
-const createColor = (mainColor: string) =>
-  augmentColor({ color: { main: mainColor } });
+const createColor = (mainColor: string) => augmentColor({ color: { main: mainColor } });
 const darkTheme = createTheme({
   palette: {
     mode: "dark",
@@ -71,8 +70,7 @@ function App() {
   const [hasUserAccess, setHasUserAccess] = useState<boolean | undefined>(
     undefined
   );
-  const [hasUserRequestedAccess, setHasUserRequestedAccess] =
-    useState<boolean>(false);
+  const [hasUserRequestedAccess, setHasUserRequestedAccess] = useState<boolean>(false);
   const [error, setError] = useState<string | undefined>(undefined);
 
   const changeAppTheme = (themeName: THEMENAME) => {
@@ -108,9 +106,7 @@ function App() {
     setHasUserAccess(true);
   }
 
-  function handleCallbackResponse(
-    response: google.accounts.id.CredentialResponse
-  ) {
+  function handleCallbackResponse(response: google.accounts.id.CredentialResponse) {
     handleLogIn(jwtDecode(response.credential));
   }
 
