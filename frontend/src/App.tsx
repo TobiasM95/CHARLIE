@@ -1,9 +1,4 @@
-import {
-  PaletteColorOptions,
-  Theme,
-  ThemeProvider,
-  createTheme
-} from "@mui/material/styles";
+import { PaletteColorOptions, Theme, ThemeProvider, createTheme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import ConversationsPage from "./conversations-overview/ConversationsPage";
 import { useEffect, useRef, useState } from "react";
@@ -209,9 +204,7 @@ function App() {
           minHeight="100vh"
         >
           <Stack>
-            <Typography align="center">
-              You do not have access to charlie yet.
-            </Typography>
+            <Typography align="center">You do not have access to charlie yet.</Typography>
             <Button
               onClick={() => {
                 requestAccess(userObject);
@@ -220,9 +213,7 @@ function App() {
             >
               Request access
             </Button>
-            {hasUserRequestedAccess && (
-              <Alert severity="success">Access requested!</Alert>
-            )}
+            {hasUserRequestedAccess && <Alert severity="success">Access requested!</Alert>}
           </Stack>
         </Box>
       )}
@@ -234,11 +225,12 @@ function App() {
           minHeight="100vh"
         >
           <Stack>
-            <Typography align="center">
-              Please log in to chat with Charlie
-            </Typography>
+            <Typography align="center">Please log in to chat with Charlie</Typography>
             <div ref={divRef}></div>
-            <Button variant="outlined" onClick={skipLogin}>
+            <Button
+              variant="outlined"
+              onClick={skipLogin}
+            >
               Skip login
             </Button>
           </Stack>
