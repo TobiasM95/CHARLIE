@@ -1,8 +1,6 @@
 import Grid from "@mui/material/Grid";
 import ConversationMessageDisplay from "./ConversationMessageDisplay";
 import { ConversationMessage } from "./ConversationContent";
-import { useEffect, useRef } from "react";
-
 
 interface IConversationCurrentPageProps {
     conversationMessages: ConversationMessage[];

@@ -8,12 +8,10 @@ import CssBaseline from "@mui/material/CssBaseline";
 import ConversationsPage from "./conversations-overview/ConversationsPage";
 import { useEffect, useRef, useState } from "react";
 import Button from "@mui/material/Button";
-import Grid from "@mui/material/Grid/Grid";
 import { Alert, Box, Stack, Typography } from "@mui/material";
 import jwtDecode from "jwt-decode";
 import { userAPI } from "./conversations-overview/UserAPI";
 import gis_info from "./Settings/gis_client_id.json";
-import { useScreenSize } from "./hooks/useScreenSize";
 
 declare module "@mui/material/styles" {
   interface CustomPalette {
@@ -67,7 +65,6 @@ interface IUserObject {
 function App() {
   const [appTheme, setAppTheme] = useState<Theme>(darkTheme);
 
-  const isMobile = useScreenSize();
   const divRef = useRef(null);
   const [userObject, setUserObject] = useState<IUserObject | undefined>();
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
