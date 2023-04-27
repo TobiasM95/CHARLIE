@@ -1,14 +1,12 @@
-import sys
 import os
-from enum import Enum
 import collections
 import re
 import json
 import hashlib
 import datetime
 
-import utils
-from utils import Mode, Language, Gender, MessagePair, Mood, AudioProcessor
+import utils.helper_functions as uhf
+import utils.data_structs as uds
 
 import numpy as np
 import time
@@ -44,25 +42,27 @@ class Charlie:
             self.config["base"] = base_config
 
         self.socketio = socketio
-        self.logger = utils.Logger(
+        self.logger = uhf.Logger(
             self.session_token, self.config["base"]["userUID"], socketio
         )
 
         self.name = self.config["base"]["name"]
-        self.mode = Mode.DORMANT
-        self.gender = Gender.get(self.config["base"]["gender"])
-        self.gender_user = Gender.get(self.config["base"]["gender-user"])
-        self.language = Language.get(self.config["base"]["language"])
-        self.translation_language_source = Language.ENGLISH
-        self.translation_language_target = Language.GERMAN
-        self.mood = Mood(style_en=self.config["base"]["style_en"], logger=self.logger)
+        self.mode = uds.Mode.DORMANT
+        self.gender = uds.Gender.get(self.config["base"]["gender"])
+        self.gender_user = uds.Gender.get(self.config["base"]["gender-user"])
+        self.language = uds.Language.get(self.config["base"]["language"])
+        self.translation_language_source = uds.Language.ENGLISH
+        self.translation_language_target = uds.Language.GERMAN
+        self.mood = uhf.Mood(
+            style_en=self.config["base"]["style_en"], logger=self.logger
+        )
         self.tts_method = self.config["base"]["tts-method"]
 
         self._init_openai()
         self._init_tts()
         self.translation_model = self._init_deepl()
 
-        self.audio_processor = AudioProcessor(logger=self.logger)
+        self.audio_processor = uhf.AudioProcessor(logger=self.logger)
         self.memory_buffer = collections.deque([], maxlen=200)
         self.memory_buffer_remember_count = self.config["base"]["memory_size"]
 
@@ -71,7 +71,7 @@ class Charlie:
         self.initialized = True
 
     def _init_tts(self):
-        self.logger.log(Mode.SYSTEM, "system", f"Initialize Google TTS API..")
+        self.logger.log(uds.Mode.SYSTEM, "system", f"Initialize Google TTS API..")
         os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.path.join(
             os.path.dirname(os.path.abspath(__file__)),
             self.api_keys["api_keys"]["google"],
@@ -81,22 +81,22 @@ class Charlie:
         ]
 
     def _init_deepl(self):
-        self.logger.log(Mode.SYSTEM, "system", "Initialize DeepL API..")
+        self.logger.log(uds.Mode.SYSTEM, "system", "Initialize DeepL API..")
         return deepl.Translator(self.api_keys["api_keys"]["deepl"])
 
     def _init_openai(self):
-        self.logger.log(Mode.SYSTEM, "system", "Initialize OpenAI API..")
+        self.logger.log(uds.Mode.SYSTEM, "system", "Initialize OpenAI API..")
         openai.api_key = self.api_keys["api_keys"]["openai"]
 
     def _init_audio_stream(self, state):
         import pyaudio
 
         self.logger.log(
-            Mode.SYSTEM,
+            uds.Mode.SYSTEM,
             "system",
             "Initialize audio stream (error warnings can be ignored as long as it doesn't crash)..",
         )
-        recording_params = utils.RecordingParams(self.config)
+        recording_params = uds.RecordingParams(self.config)
         # Calculate buffer and roll lengths in samples
         buffer_length_samples = int(
             recording_params.buffer_length_seconds * recording_params.sample_rate
@@ -132,11 +132,11 @@ class Charlie:
 
     def _process_audio_input(self):
         # transform the deque to a numpy array and normalize
-        buffer_arr = utils.buffer_to_numpy(
+        buffer_arr = uhf.buffer_to_numpy(
             self.audio_buffer, self.recording_state.recorded_frames
         )
         # transcribe the audio buffer
-        input_text = utils.transcribe_audio_buffer_api(
+        input_text = uhf.transcribe_audio_buffer_api(
             buffer_arr, self.recording_params.sample_rate
         )
         self.logger.track_stats(
@@ -150,7 +150,7 @@ class Charlie:
         return self._process_text_input()
 
     def _process_recorded_audio(self):
-        input_text = utils.transcribe_audio_buffer_api(
+        input_text = uhf.transcribe_audio_buffer_api(
             self.audio_processor.recording_buffer, self.audio_processor.sample_rate
         )
         self.logger.track_stats(
@@ -168,7 +168,9 @@ class Charlie:
         # )
         if input_text is None or input_text == "":
             self.logger.log(
-                Mode.SYSTEM, "system", "Empty or null input text retrieved from audio"
+                uds.Mode.SYSTEM,
+                "system",
+                "Empty or null input text retrieved from audio",
             )
             return None
 
@@ -183,21 +185,21 @@ class Charlie:
     ):
         # either settings_changed is None or settings_changed is true
         if settings_changed is not None:
-            self.logger.log(Mode.SYSTEM, self.name, input_text)
+            self.logger.log(uds.Mode.SYSTEM, self.name, input_text)
             if settings_list is not None:
-                self.logger.log(Mode.SYSTEM, "system", f"{settings_list}")
+                self.logger.log(uds.Mode.SYSTEM, "system", f"{settings_list}")
         else:
-            self.logger.log(Mode.SYSTEM, self.name, input_text)
+            self.logger.log(uds.Mode.SYSTEM, self.name, input_text)
             return True
 
         output_text = settings_output
-        self.logger.log(Mode.SYSTEM, "Charlie", output_text)
+        self.logger.log(uds.Mode.SYSTEM, "Charlie", output_text)
         if self.tts_method != "notts":
-            with utils.suppress_stdout():
-                utils.text_to_speech_api(
+            with uhf.suppress_stdout():
+                uhf.text_to_speech_api(
                     self.tts_method,
                     self.language
-                    if self.mode != Mode.TRANSLATION
+                    if self.mode != uds.Mode.TRANSLATION
                     else self.translation_language_target,
                     self.gender,
                     output_text,
@@ -232,14 +234,14 @@ class Charlie:
     def _process_text_input(self):
         if self.current_input_text is None:
             self.logger.log(
-                Mode.SYSTEM,
+                uds.Mode.SYSTEM,
                 "system",
                 "Attempted to process current input text that is None..",
             )
             return False
 
-        if self.mode == Mode.TRANSLATION:
-            output_text = utils.translate_transcript(
+        if self.mode == uds.Mode.TRANSLATION:
+            output_text = uhf.translate_transcript(
                 self.translation_model,
                 self.current_input_text,
                 self.translation_language_source,
@@ -247,8 +249,8 @@ class Charlie:
             ).text
             self.logger.track_stats("deepl", self.current_input_text)
             self.logger.log(self.mode, "Charlie", output_text)
-        elif self.mode == Mode.CONVERSATION:
-            output_text_dict, reply_style, reply_length = utils.prompt_gpt(
+        elif self.mode == uds.Mode.CONVERSATION:
+            output_text_dict, reply_style, reply_length = uhf.prompt_gpt(
                 self.mode,
                 self.current_input_text,
                 self.language,
@@ -264,7 +266,7 @@ class Charlie:
             self.logger.log(self.mode, "Charlie", output_text)
             self.memory_buffer.append(
                 {
-                    self.language: MessagePair(
+                    self.language: uds.MessagePair(
                         self.current_input_text,
                         output_text_dict,
                         reply_style,
@@ -272,8 +274,8 @@ class Charlie:
                     )
                 }
             )
-        elif self.mode == Mode.INFORMATION:
-            output_text, reply_style = utils.prompt_gpt(
+        elif self.mode == uds.Mode.INFORMATION:
+            output_text, reply_style = uhf.prompt_gpt(
                 self.mode,
                 self.current_input_text,
                 self.language,
@@ -287,20 +289,20 @@ class Charlie:
             self.logger.log(self.mode, "Charlie", output_text)
         else:
             # voice error message
-            output_text = utils.get_error_message(self.translation_model, self.language)
+            output_text = uhf.get_error_message(self.translation_model, self.language)
             self.logger.log(self.mode, "system", output_text)
 
         if output_text == "":
             return False
 
         if self.tts_method != "notts":
-            with utils.suppress_stdout():
+            with uhf.suppress_stdout():
                 if self.remote_controlled:
                     self.logger.socketio.start_background_task(
-                        utils.text_to_speech_api,
+                        uhf.text_to_speech_api,
                         self.tts_method,
                         self.language
-                        if self.mode != Mode.TRANSLATION
+                        if self.mode != uds.Mode.TRANSLATION
                         else self.translation_language_target,
                         self.gender,
                         output_text.replace(",", ""),
@@ -309,10 +311,10 @@ class Charlie:
                         self.logger,
                     )
                 else:
-                    utils.text_to_speech_api(
+                    uhf.text_to_speech_api(
                         self.tts_method,
                         self.language
-                        if self.mode != Mode.TRANSLATION
+                        if self.mode != uds.Mode.TRANSLATION
                         else self.translation_language_target,
                         self.gender,
                         output_text.replace(",", ""),
@@ -339,18 +341,18 @@ class Charlie:
 
     def _catch_systems_input(self, input_text):
         settings_change_requested = False
-        if utils.simple_match_shutdown(input_text):
+        if uhf.simple_match_shutdown(input_text):
             return None, "", None
-        elif utils.simple_match_list_settings(input_text):
+        elif uhf.simple_match_list_settings(input_text):
             settings_results_string = f"The current mode is {self.mode}. The gender is {self.gender}. The base language is {self.language}. The translation source language is {self.translation_language_source}. The translation target language is {self.translation_language_target}."
             return True, settings_results_string, None
-        elif utils.simple_match_change_settings(input_text):
+        elif uhf.simple_match_change_settings(input_text):
             settings_change_requested = True
-            settings_input = utils.clean_settings_input(input_text)
+            settings_input = uhf.clean_settings_input(input_text)
 
         if not settings_change_requested:
             return False, "", None
-        settings_list = utils.prompt_gpt_settings(settings_input, self.language)
+        settings_list = uhf.prompt_gpt_settings(settings_input, self.language)
         settings_results_string = self._process_settings_list(settings_list)
         return True, settings_results_string, settings_list
 
@@ -365,7 +367,7 @@ class Charlie:
 
         update_tts_language = False
         if settings_list[2] is not None:
-            if settings_list[0] == Mode.TRANSLATION:
+            if settings_list[0] == uds.Mode.TRANSLATION:
                 if self.translation_language_source != settings_list[2]:
                     update_tts_language = True
                     self.translation_language_source = settings_list[2]
@@ -380,16 +382,16 @@ class Charlie:
                 self.translation_language_target = settings_list[3]
 
         if settings_list[0] is not None:
-            if settings_list[0] == Mode.TRANSLATION:
+            if settings_list[0] == uds.Mode.TRANSLATION:
                 output_language = self.translation_language_target
-            elif settings_list[0] == Mode.CONVERSATION:
+            elif settings_list[0] == uds.Mode.CONVERSATION:
                 output_language = self.language
-            elif settings_list[0] == Mode.INFORMATION:
+            elif settings_list[0] == uds.Mode.INFORMATION:
                 output_language = self.language
             else:
                 assert False
             settings_results_string += (
-                utils.get_settings_result_string(
+                uhf.get_settings_result_string(
                     self.translation_model, "mode", settings_list[0], output_language
                 )
                 + ". "
@@ -397,7 +399,7 @@ class Charlie:
         else:
             output_language = (
                 self.language
-                if self.mode != Mode.TRANSLATION
+                if self.mode != uds.Mode.TRANSLATION
                 else self.translation_language_target
             )
 
@@ -405,25 +407,25 @@ class Charlie:
             self.gender = settings_list[1]
             output_language = (
                 self.language
-                if self.mode != Mode.TRANSLATION
+                if self.mode != uds.Mode.TRANSLATION
                 else self.translation_language_target
             )
             settings_results_string += (
-                utils.get_settings_result_string(
+                uhf.get_settings_result_string(
                     self.translation_model, "gender", settings_list[1], output_language
                 )
                 + ". "
             )
 
         if settings_list[2] is not None:
-            if settings_list[0] == Mode.TRANSLATION:
+            if settings_list[0] == uds.Mode.TRANSLATION:
                 output_language = (
                     self.language
-                    if self.mode != Mode.TRANSLATION
+                    if self.mode != uds.Mode.TRANSLATION
                     else self.translation_language_target
                 )
                 settings_results_string += (
-                    utils.get_settings_result_string(
+                    uhf.get_settings_result_string(
                         self.translation_model,
                         "language_source",
                         settings_list[2],
@@ -434,11 +436,11 @@ class Charlie:
             else:
                 output_language = (
                     self.language
-                    if self.mode != Mode.TRANSLATION
+                    if self.mode != uds.Mode.TRANSLATION
                     else self.translation_language_target
                 )
                 settings_results_string += (
-                    utils.get_settings_result_string(
+                    uhf.get_settings_result_string(
                         self.translation_model,
                         "language",
                         settings_list[2],
@@ -458,16 +460,14 @@ class Charlie:
                         source_language = list(self.memory_buffer[-i].keys())[0]
 
                         # translate message
-                        translated_message_pair = MessagePair()
+                        translated_message_pair = uds.MessagePair()
                         if self.memory_buffer[-i][source_language].msg_user is not None:
-                            translated_message_pair.msg_user = (
-                                utils.translate_transcript(
-                                    self.translation_model,
-                                    self.memory_buffer[-i][source_language].msg_user,
-                                    source_language,
-                                    self.language,
-                                ).text
-                            )
+                            translated_message_pair.msg_user = uhf.translate_transcript(
+                                self.translation_model,
+                                self.memory_buffer[-i][source_language].msg_user,
+                                source_language,
+                                self.language,
+                            ).text
                             self.logger.track_stats(
                                 "deepl",
                                 self.memory_buffer[-i][source_language].msg_user,
@@ -480,7 +480,7 @@ class Charlie:
                             is not None
                         ):
                             translated_message_pair.msg_charlie_raw = (
-                                utils.translate_transcript(
+                                uhf.translate_transcript(
                                     self.translation_model,
                                     self.memory_buffer[-i][
                                         source_language
@@ -501,7 +501,7 @@ class Charlie:
                             is not None
                         ):
                             translated_message_pair.msg_charlie_clean = (
-                                utils.translate_transcript(
+                                uhf.translate_transcript(
                                     self.translation_model,
                                     self.memory_buffer[-i][
                                         source_language
@@ -524,7 +524,7 @@ class Charlie:
                             is not None
                         ):
                             translated_message_pair.msg_charlie_style = (
-                                utils.translate_transcript(
+                                uhf.translate_transcript(
                                     self.translation_model,
                                     self.memory_buffer[-i][
                                         source_language
@@ -547,7 +547,7 @@ class Charlie:
                             is not None
                         ):
                             translated_message_pair.reply_style = (
-                                utils.translate_transcript(
+                                uhf.translate_transcript(
                                     self.translation_model,
                                     self.memory_buffer[-i][source_language].reply_style,
                                     source_language,
@@ -566,7 +566,7 @@ class Charlie:
                             is not None
                         ):
                             translated_message_pair.reply_length = (
-                                utils.translate_transcript(
+                                uhf.translate_transcript(
                                     self.translation_model,
                                     self.memory_buffer[-i][
                                         source_language
@@ -587,11 +587,11 @@ class Charlie:
         if settings_list[3] is not None:
             output_language = (
                 self.language
-                if self.mode != Mode.TRANSLATION
+                if self.mode != uds.Mode.TRANSLATION
                 else self.translation_language_target
             )
             settings_results_string += (
-                utils.get_settings_result_string(
+                uhf.get_settings_result_string(
                     self.translation_model,
                     "language_target",
                     settings_list[3],
@@ -604,9 +604,9 @@ class Charlie:
 
     def start_local_conversation(self):
         self.remote_controlled = False
-        self.mode = Mode.CONVERSATION
+        self.mode = uds.Mode.CONVERSATION
 
-        self.recording_state = utils.RecordingState()
+        self.recording_state = uhf.RecordingState()
         (
             self.pyaudio_obj,
             self.audio_stream,
@@ -614,7 +614,7 @@ class Charlie:
             self.recording_params,
         ) = self._init_audio_stream(self.recording_state)
 
-        self.logger.log(Mode.SYSTEM, "system", "Ready to record..")
+        self.logger.log(uds.Mode.SYSTEM, "system", "Ready to record..")
         self.audio_stream.start_stream()
 
         stop_conversation = False
@@ -629,7 +629,7 @@ class Charlie:
                 ).mean()
                 > self.recording_params.activation_threshold
             ):
-                self.logger.log(Mode.SYSTEM, "system", "Start recording..")
+                self.logger.log(uds.Mode.SYSTEM, "system", "Start recording..")
                 self.recording_state.is_recording = True
                 self.recording_state.recorded_frames = (
                     self.recording_params.activation_window
@@ -645,20 +645,20 @@ class Charlie:
             ):
                 self.recording_state.is_recording = False
                 self.logger.log(
-                    Mode.SYSTEM,
+                    uds.Mode.SYSTEM,
                     "system",
                     f"Deactivate recording, recorded frames: {self.recording_state.recorded_frames} = {self.recording_state.recorded_frames / self.recording_params.sample_rate} seconds",
                 )
                 stop_conversation = self._process_audio_input()
                 if not stop_conversation:
-                    self.logger.log(Mode.SYSTEM, "system", "Ready to record..")
+                    self.logger.log(uds.Mode.SYSTEM, "system", "Ready to record..")
             if stop_conversation:
                 break
         self.end_local_conversation()
 
     def end_local_conversation(self):
-        self.logger.log(Mode.SYSTEM, "system", "Shut down Charlie..")
-        self.mode = Mode.DORMANT
+        self.logger.log(uds.Mode.SYSTEM, "system", "Shut down Charlie..")
+        self.mode = uds.Mode.DORMANT
         # Stop recording and close audio stream
         self.audio_stream.stop_stream()
         self.audio_stream.close()
@@ -675,26 +675,26 @@ class Charlie:
         self.__init__(
             session_token=session_token, base_config=base_config, socketio=socketio
         )
-        self.mode = Mode.CONVERSATION
+        self.mode = uds.Mode.CONVERSATION
         if base_config["gender"] == "male":
             socketio.emit("live2dchangemodelmale", self.session_token)
         else:
             socketio.emit("live2dchangemodelfemale", self.session_token)
-        self.logger.log(Mode.SYSTEM, "system", "Ready to accept input..")
+        self.logger.log(uds.Mode.SYSTEM, "system", "Ready to accept input..")
 
     def end_conversation(self):
         if not self.initialized:
             # TODO: Give this info back to the client
             return
-        if self.mode == Mode.DORMANT:
+        if self.mode == uds.Mode.DORMANT:
             self.logger.log(
-                Mode.SYSTEM,
+                uds.Mode.SYSTEM,
                 "system",
                 "Attempted to end conversation while already dormant..",
             )
             return
-        self.logger.log(Mode.SYSTEM, "system", "Shut down Charlie..")
-        self.mode = Mode.DORMANT
+        self.logger.log(uds.Mode.SYSTEM, "system", "Shut down Charlie..")
+        self.mode = uds.Mode.DORMANT
 
     def get_last_message(self):
         if not self.initialized:
@@ -711,9 +711,9 @@ class Charlie:
         if not self.initialized:
             # TODO: Give this info back to the client
             return
-        if self.mode == Mode.DORMANT:
+        if self.mode == uds.Mode.DORMANT:
             self.logger.log(
-                Mode.SYSTEM,
+                uds.Mode.SYSTEM,
                 "system",
                 "Attempted to process external audio while dormant..",
             )
@@ -726,9 +726,9 @@ class Charlie:
             # TODO: Give this info back to the client
             print("Charlie is not yet initiliazed when accepting external text input")
             return
-        if self.mode == Mode.DORMANT:
+        if self.mode == uds.Mode.DORMANT:
             self.logger.log(
-                Mode.SYSTEM,
+                uds.Mode.SYSTEM,
                 "system",
                 "Attempted to accept external text while dormant..",
             )
@@ -739,9 +739,9 @@ class Charlie:
         if not self.initialized:
             # TODO: Give this info back to the client
             return
-        if self.mode == Mode.DORMANT:
+        if self.mode == uds.Mode.DORMANT:
             self.logger.log(
-                Mode.SYSTEM,
+                uds.Mode.SYSTEM,
                 "system",
                 "Attempted to process external text while dormant..",
             )
@@ -753,9 +753,9 @@ class Charlie:
         if not self.initialized:
             # TODO: Give this info back to the client
             return
-        if self.mode == Mode.DORMANT:
+        if self.mode == uds.Mode.DORMANT:
             self.logger.log(
-                Mode.SYSTEM,
+                uds.Mode.SYSTEM,
                 "system",
                 "Attempted to set settings manually while dormant..",
             )
@@ -776,9 +776,9 @@ class Charlie:
         if not self.initialized:
             # TODO: Give this info back to the client
             return
-        if self.mode == Mode.DORMANT:
+        if self.mode == uds.Mode.DORMANT:
             self.logger.log(
-                Mode.SYSTEM,
+                uds.Mode.SYSTEM,
                 "system",
                 "Attempted to set settings manually while dormant..",
             )
@@ -786,10 +786,12 @@ class Charlie:
 
         self.config["base"] = new_config
         self.name = self.config["base"]["name"]
-        self.gender = Gender.get(self.config["base"]["gender"])
-        self.gender_user = Gender.get(self.config["base"]["gender-user"])
-        self.language = Language.get(self.config["base"]["language"])
-        self.mood = Mood(style_en=self.config["base"]["style_en"], logger=self.logger)
+        self.gender = uds.Gender.get(self.config["base"]["gender"])
+        self.gender_user = uds.Gender.get(self.config["base"]["gender-user"])
+        self.language = uds.Language.get(self.config["base"]["language"])
+        self.mood = uhf.Mood(
+            style_en=self.config["base"]["style_en"], logger=self.logger
+        )
         self.memory_buffer_remember_count = self.config["base"]["memory_size"]
         self.tts_method = self.config["base"]["tts-method"]
 
@@ -799,7 +801,7 @@ class Charlie:
             self.socketio.emit("live2dchangemodelfemale", self.session_token)
 
         self.logger.log(
-            Mode.SYSTEM, "system", f"Changed config to {self.config['base']}"
+            uds.Mode.SYSTEM, "system", f"Changed config to {self.config['base']}"
         )
 
 

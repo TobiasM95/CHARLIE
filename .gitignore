@@ -1,7 +1,9 @@
+__pycache__/
+*.pyc
+
 backend/sound_inputs/
 backend/models/
 backend/flagged/
-backend/__pycache__/
 backend/logfiles/
 backend/api_keys.json
 frontend/src/Settings/*.json
