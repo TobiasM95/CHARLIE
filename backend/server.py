@@ -15,7 +15,7 @@ from flask_cors import CORS
 from flask_socketio import SocketIO
 
 import charlie
-import utils
+import utils.data_structs as uds
 
 mutex = Lock()
 
@@ -379,7 +379,7 @@ def resend_gender_info(session_token: str):
         session_token in charlie_sessions
         and charlie_sessions[session_token].charlie_instance.initialized
     ):
-        if charlie_sessions[session_token].charlie_instance.gender == utils.Gender.MALE:
+        if charlie_sessions[session_token].charlie_instance.gender == uds.Gender.MALE:
             socketio.emit("live2dchangemodelmale", session_token)
         else:
             socketio.emit("live2dchangemodelfemale", session_token)

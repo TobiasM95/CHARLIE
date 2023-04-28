@@ -262,7 +262,7 @@ class Charlie:
                 self.logger,
             )
             # we can't track here cause we already extracted most of the info inside the prompt_gpt function
-            output_text = self._post_process_text_output(output_text_dict["style"])
+            output_text = self._post_process_text_output(output_text_dict)
             self.logger.log(self.mode, "Charlie", output_text)
             self.memory_buffer.append(
                 {
@@ -326,9 +326,15 @@ class Charlie:
 
         return False
 
-    def _post_process_text_output(self, output_text):
+    def _post_process_text_output(self, output_text_dict):
         # Post processing of conversation text output to make it sound more natural
-        print("DEBUG: Output string raw:", output_text)
+        print("DEBUG: Output string raw:", output_text_dict)
+        if output_text_dict["style"] is not None:
+            output_text = output_text_dict["style"]
+        elif output_text_dict["none"] is not None:
+            output_text = output_text_dict["none"]
+        else:
+            return "Something went wrong when post processing text output"
         processed_output_text = output_text.replace("\n", " ")
         processed_output_text = re.sub(
             f"(?<=[\w])[\W]*\s{self.name}(?=\W)", "", processed_output_text
@@ -474,6 +480,25 @@ class Charlie:
                             )
                         else:
                             translated_message_pair.msg_user = None
+
+                        if (
+                            self.memory_buffer[-i][source_language].msg_charlie
+                            is not None
+                        ):
+                            translated_message_pair.msg_charlie = (
+                                uhf.translate_transcript(
+                                    self.translation_model,
+                                    self.memory_buffer[-i][source_language].msg_charlie,
+                                    source_language,
+                                    self.language,
+                                ).text
+                            )
+                            self.logger.track_stats(
+                                "deepl",
+                                self.memory_buffer[-i][source_language].msg_charlie,
+                            )
+                        else:
+                            translated_message_pair.msg_charlie = None
 
                         if (
                             self.memory_buffer[-i][source_language].msg_charlie_raw

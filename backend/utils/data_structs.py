@@ -39,18 +39,26 @@ class Gender:
 
 class MessagePair:
     def __init__(
-        self, msg_user=None, msg_charlie_dict=None, reply_style=None, reply_length=None
+        self,
+        msg_user=None,
+        msg_charlie_dict=None,
+        reply_style=None,
+        reply_length=None,
     ):
         self.msg_user = msg_user
+        self.msg_charlie = None
         self.msg_charlie_raw = None
         self.msg_charlie_clean = None
         self.msg_charlie_style = None
-        if "raw" in msg_charlie_dict:
-            self.msg_charlie_raw = msg_charlie_dict["raw"]
-        if "clean" in msg_charlie_dict:
-            self.msg_charlie_clean = msg_charlie_dict["clean"]
-        if "style" in msg_charlie_dict:
-            self.msg_charlie_style = msg_charlie_dict["style"]
+        if msg_charlie_dict is not None:
+            if "none" in msg_charlie_dict:
+                self.msg_charlie = msg_charlie_dict["none"]
+            if "raw" in msg_charlie_dict:
+                self.msg_charlie_raw = msg_charlie_dict["raw"]
+            if "clean" in msg_charlie_dict:
+                self.msg_charlie_clean = msg_charlie_dict["clean"]
+            if "style" in msg_charlie_dict:
+                self.msg_charlie_style = msg_charlie_dict["style"]
 
         # reply style that was used to generate the response of chat gpt
         self.reply_style = reply_style

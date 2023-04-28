@@ -16,7 +16,7 @@ from thefuzz import fuzz
 
 from .data_structs import Language, Mode, Gender, gpt_models
 
-from .conversation_prompts.dialog_completion_engine import (
+from .conversation_prompts.iterative_refinement import (
     get_conversation_prompt_chat_gpt,
     extract_prompt_answers,
 )
@@ -29,7 +29,7 @@ openai.api_key = json.load(
 )["api_keys"]["openai"]
 
 ####################################################################
-#####                  #############################################
+#####  COMPLEX CLASSES  ############################################
 ####################################################################
 
 
