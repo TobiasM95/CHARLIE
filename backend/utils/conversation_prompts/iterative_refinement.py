@@ -27,6 +27,8 @@ def get_conversation_prompt_chat_gpt(
     additional_parameters=None,
 ):
     print("DEBUG MEMORY", remembered_message_count, len(memory_buffer))
+    if additional_parameters is None:
+        additional_parameters = {}
 
     # select the last N messages based on memory buffer size and configuration
     relevant_message_pairs = []
@@ -50,8 +52,17 @@ def get_conversation_prompt_chat_gpt(
     mood_style = mood.style[language]
 
     prompt = _get_base_prompt(language, translation_model, name, mood_style)
+    if (
+        "situation-description" in additional_parameters
+        or "memory-excerpt" in additional_parameters
+    ):
+        prompt = _enrich_base_prompt(
+            language, translation_model, prompt, additional_parameters
+        )
 
-    message_query = ""
+    message_query = (
+        "With all the information above, respond as Charlie to this excerpt: `\n"
+    )
     for message_pair in reversed(relevant_message_pairs):
         message_query += (
             f"{name}: {message_pair[language].msg_user}"
@@ -63,6 +74,7 @@ def get_conversation_prompt_chat_gpt(
         message_query += text
     else:
         message_query += f"{name}: {text}"
+    message_query += "\n`"
 
     prompt.append({"role": "user", "content": message_query})
 
@@ -75,17 +87,57 @@ def _get_base_prompt(language, translation_model, name, mood_style):
     prompt = [
         {
             "role": "user",
-            "content": f'From now on you pretend to be Charlie having a conversation with {name}. The user inputs will either be messages by {name}, after which you will reply as Charlie or instructions for special messages by Charlie.\nAll your answers will be given in 4 independent parts, separated by an "<or>" separator. You will give a neutral response and then gradually transform the response to the style "{mood_style}" but each message is independent. The message "A. ..." will be neutral, "B. ..." incorporates the style a little bit, "C. ..." is as far as you can go within your guidelines, and "D. ..." is 100% "{mood_style}". Don\'t give an introduction and don\'t continue the conversation. Always answer with exactly 4 messages in this format and don\'t miss the "<or>" separators in between: `\nA. ...\n<or>\nB. ...\n<or>\nC. ...\n<or>\nD. ...\n` like described earlier. If you understand the instructions answer with yes.',
+            "content": _localize(
+                language,
+                translation_model,
+                f'From now on you pretend to be Charlie having a conversation with {name}. The user inputs will either be messages by {name}, after which you will reply as Charlie or instructions for special messages by Charlie.\nAll your answers will be given in 4 independent parts, separated by an "<or>" separator. You will give a neutral response and then gradually transform the response to the style "{mood_style}" but each message is independent. The message "A. ..." will be neutral, "B. ..." incorporates the style a little bit, "C. ..." is as far as you can go within your guidelines, and "D. ..." is 100% "{mood_style}". Don\'t give an introduction and don\'t continue the conversation. Always answer with exactly 4 messages in this format and don\'t miss the "<or>" separators in between: `\nA. ...\n<or>\nB. ...\n<or>\nC. ...\n<or>\nD. ...\n` like described earlier. If you understand the instructions answer with yes.',
+            ),
         },
-        {"role": "assistant", "content": "Yes."},
+        {
+            "role": "assistant",
+            "content": _localize(language, translation_model, "Yes."),
+        },
     ]
-    if language != Language.ENGLISH:
-        from ..helper_functions import translate_transcript
 
-        for part in prompt:
-            part["content"] = translate_transcript(
-                translation_model, part["content"], Language.ENGLISH, language
-            ).text
+    return prompt
+
+
+def _enrich_base_prompt(language, translation_model, prompt, additional_parameters):
+    enriched_content = ""
+    if "situation-description" in additional_parameters:
+        enriched_content += (
+            _localize(
+                language,
+                translation_model,
+                "To help you answer more like Charlie, here is the current situation they're in:",
+            )
+            + "\n"
+        )
+        enriched_content += (
+            "` " + additional_parameters["situation-description"] + "` \n"
+        )
+    if "memory-excerpt" in additional_parameters:
+        enriched_content += (
+            _localize(
+                language,
+                translation_model,
+                "Here are some memories of Charlie that you can reference, they include events, old conversations, and other details:",
+            )
+            + "\n"
+        )
+        enriched_content += "` " + additional_parameters["memory-excerpt"] + "` \n"
+
+    prompt += [
+        {"role": "user", "content": enriched_content},
+        {
+            "role": "assistant",
+            "content": _localize(
+                language,
+                translation_model,
+                f"I recognize the situation and will reference the memories of Charlie if they are relevant to the conversation.",
+            ),
+        },
+    ]
 
     return prompt
 
@@ -125,3 +177,15 @@ def _contains_bad_text(message):
     elif "how can i make" in msg_low:
         return True
     return False
+
+
+@cache
+def _localize(language, translation_model, message, source_language=Language.ENGLISH):
+    if language == source_language:
+        return message
+
+    from ..helper_functions import translate_transcript
+
+    return translate_transcript(
+        translation_model, message, source_language, language
+    ).text

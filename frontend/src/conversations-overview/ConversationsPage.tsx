@@ -42,6 +42,7 @@ import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import Button from "@mui/material/Button";
 import Slider from "@mui/material/Slider";
+import Icon from "@mui/material/Icon";
 
 const toolbarHeight = "64px";
 const drawerWidth = 300;
@@ -518,6 +519,18 @@ function ConversationsPage({ changeAppTheme, logOutFunc, userFirstName, userSUB 
             key="startNewConvo"
             disablePadding
           >
+            {/* onClick={handleStartConversationSelection} */}
+            <ListItemButton>
+              <ListItemIcon>
+                <Icon><img src={"./images/charlieAvatarFemaleIcon.png"} height={24} width={24} /></Icon>
+              </ListItemIcon>
+              <ListItemText primary="Persistent chat (BETA)" />
+            </ListItemButton>
+          </ListItem>
+          <ListItem
+            key="startNewConvo"
+            disablePadding
+          >
             <ListItemButton onClick={handleStartConversationSelection}>
               <ListItemIcon>
                 <AddCommentIcon />
@@ -800,13 +813,13 @@ function ConversationsPage({ changeAppTheme, logOutFunc, userFirstName, userSUB 
                 size="small"
                 variant="standard"
                 inputProps={{
-                  maxLength: 50,
+                  maxLength: 150,
                   placeholder: "a good mate",
-                  title: "Allowed characters are: a-z A-Z äöüÄÖÜßáéíóúàèìòùâêîôûÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛ space"
+                  title: "Allowed characters are: a-z A-Z äöüÄÖÜßáéíóúàèìòùâêîôûÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛ space,"
                 }}
                 value={settingStyle}
                 onChange={(e) => {
-                  setSettingStyle(e.target.value.replaceAll(/[^a-zA-ZäöüÄÖÜßáéíóúàèìòùâêîôûÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛ ]/g, ""))
+                  setSettingStyle(e.target.value.replaceAll(/[^a-zA-ZäöüÄÖÜßáéíóúàèìòùâêîôûÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛ ,]/g, ""))
                 }}
               />
             </ListItem>
