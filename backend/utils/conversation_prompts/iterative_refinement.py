@@ -1,19 +1,28 @@
 import re
 from functools import cache
+import copy
 from ..data_structs import Language
 
-# conversation prompt interfaces have to implement at least the following functions:
+# conversation prompt interfaces have to implement at least the following functions and dictionaries:
+#
+# chat_gpt_parameter_dict: dict["temperature" | "presence_penalty", | "frequency_penalty", float]
 #
 # get_conversation_prompt_chat_gpt(translation_model, input_text, language, user_name, memory_buffer, remembered_message_count, mood, additional_parameters: dict | None)
 # -> chatgpt_prompt: list, mood_style: str | "undefined", message_length: str | "undefined"
 #
-# from functools import cache
+# from functools import cache NOTE: THE RETURNED LIST NEEDS TO BE DEEPCOPIED BEFORE BEING MUTATED
 # @cache
 # _get_base_prompt(language, translation_model, *args)
 # -> prompt: list[dict["role" | "content", str]]
 #
 # _extract_prompt_answers(full_answer: str, *args)
 # -> answer_dict: dict["raw" | "clean" | "style", str | None]
+
+chat_gpt_parameter_dict = {
+    "temperature": 1.0,
+    "presence_penalty": 0.0,
+    "frequency_penalty": 0.0,
+}
 
 
 def get_conversation_prompt_chat_gpt(
@@ -51,7 +60,10 @@ def get_conversation_prompt_chat_gpt(
         mood.translate_style(translation_model, language)
     mood_style = mood.style[language]
 
-    prompt = _get_base_prompt(language, translation_model, name, mood_style)
+    prompt = copy.deepcopy(
+        _get_base_prompt(language, translation_model, name, mood_style)
+    )
+    print("DEBUG base prompt:", prompt)
     if (
         "situation-description" in additional_parameters
         or "memory-excerpt" in additional_parameters
@@ -59,6 +71,7 @@ def get_conversation_prompt_chat_gpt(
         prompt = _enrich_base_prompt(
             language, translation_model, prompt, additional_parameters
         )
+    print("DEBUG enriched prompt:", prompt)
 
     message_query = (
         "With all the information above, respond as Charlie to this excerpt: `\n"
@@ -67,14 +80,19 @@ def get_conversation_prompt_chat_gpt(
         message_query += (
             f"{name}: {message_pair[language].msg_user}"
             + "\n"
-            + f"{name}: {message_pair[language].msg_charlie}"
+            + f"Charlie: {message_pair[language].msg_charlie}"
             + "\n"
         )
+    message_query += (
+        "`\n"
+        + _localize(language, translation_model, "With the last message/input:")
+        + "\n"
+    )
     if text.startswith("("):
-        message_query += text
+        message_query += f"` {text} `"
     else:
-        message_query += f"{name}: {text}"
-    message_query += "\n`"
+        message_query += f"` {name}: {text} `"
+    print("DEBUG message_query", message_query)
 
     prompt.append({"role": "user", "content": message_query})
 
@@ -144,10 +162,10 @@ def _enrich_base_prompt(language, translation_model, prompt, additional_paramete
 
 def extract_prompt_answers(full_answer):
     print("DEBUG", full_answer)
-    answer_1 = re.search("(?:A\.\s*)(.*)", full_answer)
-    answer_2 = re.search("(?:B\.\s*)(.*)", full_answer)
-    answer_3 = re.search("(?:C\.\s*)(.*)", full_answer)
-    answer_4 = re.search("(?:D\.\s*)(.*)", full_answer)
+    answer_1 = list(re.finditer("(?:A\.\s*)(.*)", full_answer))[-1]
+    answer_2 = list(re.finditer("(?:B\.\s*)(.*)", full_answer))[-1]
+    answer_3 = list(re.finditer("(?:C\.\s*)(.*)", full_answer))[-1]
+    answer_4 = list(re.finditer("(?:D\.\s*)(.*)", full_answer))[-1]
     if answer_4 is not None and not _contains_bad_text(answer_4.group(1)):
         answer = answer_4.group(1)
     elif answer_3 is not None and not _contains_bad_text(answer_3.group(1)):
@@ -162,6 +180,9 @@ def extract_prompt_answers(full_answer):
         answer = answer_1.group(1)
     else:
         answer = full_answer
+    answer = answer.strip()
+    if answer[0] == '"' or answer[0] == "'":
+        answer = answer.strip('"').strip("'")
     answer_dict = {}
     answer_dict["none"] = answer
     answer_dict["raw"] = None

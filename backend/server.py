@@ -3,19 +3,19 @@ import os
 import shutil
 import re
 import json
-import hashlib
-from threading import Lock
+from threading import Thread, Event, Lock
 import datetime
+import time
 
 import numpy as np
-import soundfile as sf
 
-from flask import Flask, Response, request
+from flask import Flask, request
 from flask_cors import CORS
 from flask_socketio import SocketIO
 
 import charlie
 import utils.data_structs as uds
+import utils.helper_functions as uhf
 
 mutex = Lock()
 
@@ -86,7 +86,9 @@ def requestUserAccess() -> None:
 def get_conversations_as_dict(useruid="0" * 21) -> dict:
     conversation_list_unsorted = []
     conversation_dict = {}
-    logfile_dir = os.path.join(os.path.dirname(__file__), "logfiles", useruid)
+    logfile_dir = os.path.join(
+        os.path.dirname(__file__), "logfiles", useruid, "npm_sessions"
+    )
     if not os.path.isdir(logfile_dir):
         os.makedirs(logfile_dir, exist_ok=True)
 
@@ -397,7 +399,10 @@ def _format_conversation_data(userUID, filepath):
     conversation_data = {}
     conversation_data["lineInformation"] = []
     with open(
-        os.path.join(os.path.dirname(__file__), "logfiles", userUID, filepath), "r"
+        os.path.join(
+            os.path.dirname(__file__), "logfiles", userUID, "npm_sessions", filepath
+        ),
+        "r",
     ) as conv_file:
         message_count = 0
         for i, line in enumerate(conv_file):
@@ -510,21 +515,52 @@ def _read_protocol_from_frontend_settings() -> bool:
         return False
 
 
+def _memorization_cleanup(quit_event):
+    update_after = 3
+    update_timer = update_after
+    check_every = 5
+    while True:
+        if quit_event.is_set():
+            break
+        if update_timer >= update_after:
+            active_session_tokens = list(charlie_sessions.keys())
+            uhf.memorize_conversations(active_session_tokens)
+            update_timer = 0
+        update_timer += check_every
+        time.sleep(check_every)
+
+
 if __name__ == "__main__":
     if len(sys.argv) > 2 and sys.argv[2] == "debug":
         print("Start with debug..")
         debug = True
     else:
         debug = False
+
+    mcp_quit_event = Event()
+    memorization_cleanup_thread = Thread(
+        target=_memorization_cleanup, args=(mcp_quit_event,)
+    )
+    if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+        memorization_cleanup_thread.start()
+
     uses_https: bool = _read_protocol_from_frontend_settings()
-    if uses_https:
-        socketio.run(
-            app,
-            debug=debug,
-            port=5000,
-            host=sys.argv[1],
-            certfile="../ssl/apache-selfsigned.crt",
-            keyfile="../ssl/apache-selfsigned.key",
-        )
-    else:
-        socketio.run(app, debug=debug, port=5000, host=sys.argv[1])
+    try:
+        if uses_https:
+            socketio.run(
+                app,
+                debug=debug,
+                port=5000,
+                host=sys.argv[1],
+                certfile="../ssl/apache-selfsigned.crt",
+                keyfile="../ssl/apache-selfsigned.key",
+            )
+        else:
+            socketio.run(app, debug=debug, port=5000, host=sys.argv[1])
+    finally:
+        mcp_quit_event.set()
+        if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+            print("Please wait for the background threads to finish")
+
+    if memorization_cleanup_thread.is_alive():
+        memorization_cleanup_thread.join()

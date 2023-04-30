@@ -19,6 +19,7 @@ from .data_structs import Language, Mode, Gender, gpt_models
 from .conversation_prompts.iterative_refinement import (
     get_conversation_prompt_chat_gpt,
     extract_prompt_answers,
+    chat_gpt_parameter_dict,
 )
 
 openai.api_key = json.load(
@@ -342,25 +343,40 @@ class AudioProcessor:
 
 
 class Logger:
-    def __init__(self, session_token, userUID, socketio=None):
+    def __init__(
+        self, session_token, userUID, socketio=None, persistent_memory_session=False
+    ):
         self.session_token = session_token
-        self.logfile_dir = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "..", "logfiles", userUID
+        self.npm_logfile_dir = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "..",
+            "logfiles",
+            userUID,
+            "npm_sessions",
+        )
+        self.pm_logfile_dir = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "..",
+            "logfiles",
+            userUID,
+            "persistent_session",
+            "raw_logfiles",
         )
         self.stats_dir = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "..", "stats"
         )
-        os.makedirs(
-            self.logfile_dir,
-            exist_ok=True,
-        )
+        os.makedirs(self.npm_logfile_dir, exist_ok=True)
+        os.makedirs(self.pm_logfile_dir, exist_ok=True)
         os.makedirs(self.stats_dir, exist_ok=True)
         self.session_time = datetime.now()
         timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+        weekday = datetime.now().strftime("%A")
+
         self.filename = os.path.join(
-            self.logfile_dir, f"session_{timestamp}.txt".replace(":", "-")
+            self.pm_logfile_dir if persistent_memory_session else self.npm_logfile_dir,
+            f"session_{timestamp}.txt".replace(":", "-"),
         )
-        self.last_log_message = f"[{timestamp}][SYSTEM, system] Start session."
+        self.last_log_message = f"[{timestamp}][SYSTEM, system] Start session on {weekday} at {timestamp}, session token {self.session_token}."
         print(self.last_log_message)
         with open(self.filename, "w") as logfile:
             logfile.write(self.last_log_message + "\n")
@@ -681,15 +697,17 @@ def prompt_gpt(
             memory_buffer,
             remembered_message_count,
             mood,
+            {
+                "situation-description": "Tobi and Charlie are both at their PCs and talking over the internet",
+                "memory-excerpt": "Yesterday was Sunday. Charlie owns a cat. Charlie went fishing yesterday. Charlie likes to play Doom on her Nintendo Switch",
+            },
         )
         try:
             result = openai.ChatCompletion.create(
                 model=gpt_models[mode],
                 messages=chat_gpt_messages,
                 max_tokens=250,
-                temperature=0.3,
-                presence_penalty=0.67,
-                frequency_penalty=1.03,
+                **chat_gpt_parameter_dict,
             )
         except openai.error.RateLimitError as e:
             err_msg = str(e)
@@ -906,6 +924,51 @@ def suppress_stdout():
             yield
         finally:
             sys.stdout = old_stdout
+
+
+def memorize_conversations(active_session_tokens: list[str]):
+    sessions_to_memorize = {}
+
+    # search which non-active sessions have to be memorized
+    print(f"Active sessions: {active_session_tokens}")
+    logfile_dir = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "..", "logfiles"
+    )
+    user_dirs = next(os.walk(logfile_dir))[1]
+    for user_dir in user_dirs:
+        raw_logfiles_dir = os.path.join(
+            logfile_dir, user_dir, "persistent_session", "raw_logfiles"
+        )
+        leftover_persistent_sessions = next(os.walk(raw_logfiles_dir))[2]
+
+        for leftover_session in leftover_persistent_sessions:
+            file_path = os.path.join(raw_logfiles_dir, leftover_session)
+            # f"[{timestamp}][SYSTEM, system] Start session on {weekday} at {timestamp}, session token {self.session_token}."
+            with open(file_path, "r") as sess_file:
+                line = sess_file.readline()
+                session_token_match = re.search("(?: session token )(.*?).$", line)
+                if session_token_match is not None:
+                    session_token = session_token_match.group(1)
+            if session_token not in active_session_tokens:
+                if user_dir not in sessions_to_memorize:
+                    sessions_to_memorize[user_dir] = [leftover_session]
+                else:
+                    sessions_to_memorize[user_dir] += [leftover_session]
+    print(sessions_to_memorize)
+
+    # for each session to memorize
+    # gather meta information like date, day of week, etc.
+    # filter out system messages
+    # split the conversations in chunks that suit chatgpt summarization
+    # let ChatGPT summarize the content (user info and charlie info has to be included)
+    # create openai vector embedding
+    # read/create vector db file
+    # if embedding is inside -> skip, if not:
+    # append it to numpy array and save index and pickle array
+    # read/create summary db (JSON)
+    # create new entry with saved index and the summarized info
+    # dump json to file
+    # delete raw log file
 
 
 ####################################################################

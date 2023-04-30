@@ -16,7 +16,12 @@ import openai
 
 class Charlie:
     def __init__(
-        self, session_token="", no_init=False, base_config=None, socketio=None
+        self,
+        session_token="",
+        no_init=False,
+        base_config=None,
+        socketio=None,
+        persistent_memory_session=False,
     ):
         print("DEBUG init charlie with session token", session_token)
         self.session_token = session_token
@@ -43,7 +48,10 @@ class Charlie:
 
         self.socketio = socketio
         self.logger = uhf.Logger(
-            self.session_token, self.config["base"]["userUID"], socketio
+            self.session_token,
+            self.config["base"]["userUID"],
+            socketio,
+            persistent_memory_session=persistent_memory_session,
         )
 
         self.name = self.config["base"]["name"]

@@ -1,20 +1,29 @@
 import re
 from functools import cache
+import copy
 
 from ..data_structs import Language
 
-# conversation prompt interfaces have to implement at least the following functions:
+# conversation prompt interfaces have to implement at least the following functions and dictionaries:
+#
+# chat_gpt_parameter_dict: dict["temperature" | "presence_penalty", | "frequency_penalty", float]
 #
 # get_conversation_prompt_chat_gpt(translation_model, input_text, language, user_name, memory_buffer, remembered_message_count, mood, additional_parameters: dict | None)
 # -> chatgpt_prompt: list, mood_style: str | "undefined", message_length: str | "undefined"
 #
-# from functools import cache
+# from functools import cache NOTE: THE RETURNED LIST NEEDS TO BE DEEPCOPIED BEFORE BEING MUTATED
 # @cache
 # _get_base_prompt(language, translation_model, *args)
 # -> prompt: list[dict["role" | "content", str]]
 #
 # _extract_prompt_answers(full_answer: str, *args)
 # -> answer_dict: dict["raw" | "clean" | "style", str | None]
+
+chat_gpt_parameter_dict = {
+    "temperature": 0.3,
+    "presence_penalty": 0.67,
+    "frequency_penalty": 1.03,
+}
 
 
 def get_conversation_prompt_chat_gpt(
@@ -53,8 +62,8 @@ def get_conversation_prompt_chat_gpt(
     style_example = mood.style_example[language]
     message_length = mood.get_message_length(text)
 
-    prompt = _get_base_prompt(
-        language, translation_model, name, mood_style, style_example
+    prompt = copy.deepcopy(
+        _get_base_prompt(language, translation_model, name, mood_style, style_example)
     )
 
     for message_pair in reversed(relevant_message_pairs):
