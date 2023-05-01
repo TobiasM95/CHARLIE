@@ -703,10 +703,17 @@ class Charlie:
     ####################################################################
 
     def initialize_conversation(
-        self, session_token="", base_config=None, socketio=None
+        self,
+        session_token="",
+        base_config=None,
+        socketio=None,
+        persistent_memory_session=False,
     ):
         self.__init__(
-            session_token=session_token, base_config=base_config, socketio=socketio
+            session_token=session_token,
+            base_config=base_config,
+            socketio=socketio,
+            persistent_memory_session=persistent_memory_session,
         )
         self.mode = uds.Mode.CONVERSATION
         if base_config["gender"] == "male":
@@ -839,14 +846,17 @@ class Charlie:
 
 
 class CharlieSession:
-    def __init__(self, user_uid: str):
+    def __init__(self, user_uid: str, persistent: bool = False):
         self.user_uid: str = user_uid
         self.session_token: str = self._create_session_token(user_uid)
         self.last_update: datetime.datetime = datetime.datetime.today()
         self.charlie_instance: Charlie = Charlie(
-            session_token=self.session_token, no_init=True
+            session_token=self.session_token,
+            no_init=True,
+            persistent_memory_session=persistent,
         )
         self.charlie_is_responsive: bool = True
+        self.persistent_memory_session: bool = persistent
 
     def _create_session_token(self, user_uid):
         timestamp_str = str(datetime.datetime.today().timestamp())

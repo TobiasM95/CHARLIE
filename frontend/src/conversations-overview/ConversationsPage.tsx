@@ -116,6 +116,7 @@ function ConversationsPage({ changeAppTheme, logOutFunc, userFirstName, userSUB 
   const [userUID] = useState<string>(userSUB);
   const [sessionKey, setSessionKey, sessionKeyRef] = useState<string>("");
   const [sessionToken, setSessionToken, sessionTokenRef] = useState<string>("");
+  const [settingPersistentSession, setSettingPersistentSession, settingPersistentSessionRef] = useState<boolean>(false);
   const [settingUserName, setSettingUserName, settingUserNameRef] = useState<string>(userFirstName === "" ? "John" : userFirstName);
   const [settingCharlieGender, setSettingCharlieGender, settingCharlieGenderRef] = useState<string>("female");
   const [settingUserGender, setSettingUserGender, settingUserGenderRef] = useState<string>("male");
@@ -142,7 +143,8 @@ function ConversationsPage({ changeAppTheme, logOutFunc, userFirstName, userSUB 
     setMode("DEFAULT");
   }
 
-  const handleStartConversationSelection = () => {
+  const handleStartConversationSelection = (persistentSession: boolean) => {
+    setSettingPersistentSession(persistentSession)
     if (mode !== "CONVERSATION") {
       connectSocketIO();
       //initCharlieREST()
@@ -193,6 +195,7 @@ function ConversationsPage({ changeAppTheme, logOutFunc, userFirstName, userSUB 
           "initcharlie",
           userUID,
           sessionKeyLocal,
+          settingPersistentSessionRef.current,
           {
             "userUID": userUID,
             "name": settingUserNameRef.current === "" ? "John" : settingUserNameRef.current,
@@ -519,8 +522,7 @@ function ConversationsPage({ changeAppTheme, logOutFunc, userFirstName, userSUB 
             key="startNewConvo"
             disablePadding
           >
-            {/* onClick={handleStartConversationSelection} */}
-            <ListItemButton>
+            <ListItemButton onClick={() => handleStartConversationSelection(true)}>
               <ListItemIcon>
                 <Icon><img src={"./images/charlieAvatarFemaleIcon.png"} height={24} width={24} /></Icon>
               </ListItemIcon>
@@ -531,7 +533,7 @@ function ConversationsPage({ changeAppTheme, logOutFunc, userFirstName, userSUB 
             key="startNewConvo"
             disablePadding
           >
-            <ListItemButton onClick={handleStartConversationSelection}>
+            <ListItemButton onClick={() => handleStartConversationSelection(false)}>
               <ListItemIcon>
                 <AddCommentIcon />
               </ListItemIcon>

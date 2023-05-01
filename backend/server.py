@@ -135,7 +135,10 @@ def _handle_async_init_new_conversation(
     charlie_sessions[
         charlie_session.session_token
     ].charlie_instance.initialize_conversation(
-        charlie_session.session_token, request_body, socketio=socketio
+        charlie_session.session_token,
+        request_body,
+        socketio=socketio,
+        persistent_memory_session=charlie_session.persistent_memory_session,
     )
     _set_responsiveness(charlie_session.session_token, True)
     socketio.emit(
@@ -214,9 +217,9 @@ def _handle_async_change_settings_new_conversation(
 
 
 @socketio.on("initcharlie")
-def handle_connect(user_uid: str, key: str, config: dict) -> None:
-    print("initcharlie:", user_uid, key, config)
-    charlie_session = charlie.CharlieSession(user_uid)
+def handle_connect(user_uid: str, key: str, persistent: bool, config: dict) -> None:
+    print("initcharlie:", user_uid, key, config, persistent)
+    charlie_session = charlie.CharlieSession(user_uid, persistent)
     charlie_session.charlie_is_responsive = False
     socketio.emit(
         "charliesessioninit",

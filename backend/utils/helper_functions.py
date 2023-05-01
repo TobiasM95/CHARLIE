@@ -348,17 +348,20 @@ class MemoryDatabase:
         else:
             self.memory_vector_db = np.zeros((0, 1536))
         if os.path.isfile(memory_summary_db_path):
-            self.memory_summary_db = pickle.load(open(self.memory_summary_db_path))
+            self.memory_summary_db = pickle.load(
+                open(self.memory_summary_db_path, "rb")
+            )
         else:
             self.memory_summary_db = []
 
-    def insert_memory(self, embedding: list[float], summary: str):
+    def insert_memory(self, embedding: list[float], summary: str) -> bool:
         if any(np.equal(self.memory_vector_db, embedding).all(1)):
-            return
+            return False
         self.memory_vector_db = np.vstack(
             (self.memory_vector_db, np.asarray(embedding).reshape((1, -1)))
         )
         self.memory_summary_db.append(summary)
+        return True
 
     def retrieve_memory(self, embedding: list[float], num_memories: int):
         if num_memories == 1:
@@ -429,7 +432,7 @@ class Logger:
                 else self.npm_logfile_dir,
                 f"session_{timestamp}.txt".replace(":", "-"),
             )
-            self.last_log_message = f"[{timestamp}][SYSTEM, system] Start session on {weekday} at {timestamp}, session token {self.session_token}."
+            self.last_log_message = f"[{timestamp}][SYSTEM, system] Start session on {weekday} at {timestamp}, session token {self.session_token}, persistency={persistent_memory_session}."
             print(self.last_log_message)
             with open(self.filename, "w") as logfile:
                 logfile.write(self.last_log_message + "\n")
@@ -1089,6 +1092,7 @@ def memorize_conversations(active_session_tokens: list[str], logger: Logger):
                     filtered_message_chunks.append(chunk)
 
             session_file_success = True
+            db_has_changed = False
             for chunk in filtered_message_chunks:
                 # let ChatGPT summarize the content (user info and charlie info has to be included)
                 success, summary = prompt_gpt_summarization(
@@ -1102,10 +1106,11 @@ def memorize_conversations(active_session_tokens: list[str], logger: Logger):
                 embedding = openai.Embedding.create(
                     input=summary, model="text-embedding-ada-002"
                 )["data"][0]["embedding"]
-                memory_database.insert_memory(embedding, summary)
+                db_has_changed = memory_database.insert_memory(embedding, summary)
             if not session_file_success:
                 break
-            memory_database.save_to_disk()
+            if db_has_changed:
+                memory_database.save_to_disk()
             os.remove(session_file_path)
 
 
