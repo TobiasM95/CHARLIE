@@ -3,6 +3,7 @@
 REM Requirements: Python (3.10.1)
 
 pip install numpy
+pip install scipy
 pip install thefuzz
 pip install python-Levenshtein
 pip install simpleaudio

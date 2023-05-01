@@ -516,16 +516,19 @@ def _read_protocol_from_frontend_settings() -> bool:
 
 
 def _memorization_cleanup(quit_event):
-    update_after = 3
+    memorization_logger = uhf.Logger(None, None, None, True)
+    update_after = 900
     update_timer = update_after
     check_every = 5
     while True:
         if quit_event.is_set():
             break
         if update_timer >= update_after:
+            print("Start memorization progress in background..")
             active_session_tokens = list(charlie_sessions.keys())
-            uhf.memorize_conversations(active_session_tokens)
+            uhf.memorize_conversations(active_session_tokens, memorization_logger)
             update_timer = 0
+            print("Finished memorization progress.")
         update_timer += check_every
         time.sleep(check_every)
 

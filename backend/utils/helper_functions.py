@@ -1,4 +1,5 @@
 from contextlib import contextmanager
+import pickle
 import sys
 import os
 import io
@@ -9,6 +10,7 @@ import json
 import wave
 
 import numpy as np
+from scipy.spatial import distance
 import openai
 import google.cloud.texttospeech as tts
 import soundfile as sf
@@ -337,6 +339,54 @@ class AudioProcessor:
             sf.write(wavfile, self.recording_buffer, self.sample_rate, format="WAV")
 
 
+class MemoryDatabase:
+    def __init__(self, memory_vector_db_path: str, memory_summary_db_path: str):
+        self.memory_vector_db_path = memory_vector_db_path
+        self.memory_summary_db_path = memory_summary_db_path
+        if os.path.isfile(memory_vector_db_path):
+            self.memory_vector_db = pickle.load(open(self.memory_vector_db_path, "rb"))
+        else:
+            self.memory_vector_db = np.zeros((0, 1536))
+        if os.path.isfile(memory_summary_db_path):
+            self.memory_summary_db = pickle.load(open(self.memory_summary_db_path))
+        else:
+            self.memory_summary_db = []
+
+    def insert_memory(self, embedding: list[float], summary: str):
+        if any(np.equal(self.memory_vector_db, embedding).all(1)):
+            return
+        self.memory_vector_db = np.vstack(
+            (self.memory_vector_db, np.asarray(embedding).reshape((1, -1)))
+        )
+        self.memory_summary_db.append(summary)
+
+    def retrieve_memory(self, embedding: list[float], num_memories: int):
+        if num_memories == 1:
+            return [
+                self.memory_summary_db[
+                    distance.cdist(
+                        self.memory_vector_db,
+                        np.asarray(embedding).reshape((1, -1)),
+                        "cosine",
+                    ).argmin()
+                ]
+            ]
+        queried_indices = np.argpartition(
+            distance.cdist(
+                self.memory_vector_db, np.asarray(embedding).reshape((1, -1)), "cosine"
+            ).flatten(),
+            list(range(num_memories)),
+        )[:num_memories]
+        queried_memories = []
+        for qi in queried_indices:
+            queried_memories.append(self.memory_summary_db[qi])
+        return queried_memories
+
+    def save_to_disk(self):
+        pickle.dump(self.memory_vector_db, open(self.memory_vector_db_path, "wb"))
+        pickle.dump(self.memory_summary_db, open(self.memory_summary_db_path, "wb"))
+
+
 ####################################################################
 #####     LOGGING      #############################################
 ####################################################################
@@ -347,42 +397,45 @@ class Logger:
         self, session_token, userUID, socketio=None, persistent_memory_session=False
     ):
         self.session_token = session_token
-        self.npm_logfile_dir = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "..",
-            "logfiles",
-            userUID,
-            "npm_sessions",
-        )
-        self.pm_logfile_dir = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "..",
-            "logfiles",
-            userUID,
-            "persistent_session",
-            "raw_logfiles",
-        )
         self.stats_dir = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "..", "stats"
         )
-        os.makedirs(self.npm_logfile_dir, exist_ok=True)
-        os.makedirs(self.pm_logfile_dir, exist_ok=True)
         os.makedirs(self.stats_dir, exist_ok=True)
-        self.session_time = datetime.now()
-        timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
-        weekday = datetime.now().strftime("%A")
+        if userUID is not None:
+            self.npm_logfile_dir = os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                "..",
+                "logfiles",
+                userUID,
+                "npm_sessions",
+            )
+            self.pm_logfile_dir = os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                "..",
+                "logfiles",
+                userUID,
+                "persistent_session",
+                "raw_logfiles",
+            )
+            os.makedirs(self.npm_logfile_dir, exist_ok=True)
+            os.makedirs(self.pm_logfile_dir, exist_ok=True)
+            self.session_time = datetime.now()
+            timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+            weekday = datetime.now().strftime("%A")
 
-        self.filename = os.path.join(
-            self.pm_logfile_dir if persistent_memory_session else self.npm_logfile_dir,
-            f"session_{timestamp}.txt".replace(":", "-"),
-        )
-        self.last_log_message = f"[{timestamp}][SYSTEM, system] Start session on {weekday} at {timestamp}, session token {self.session_token}."
-        print(self.last_log_message)
-        with open(self.filename, "w") as logfile:
-            logfile.write(self.last_log_message + "\n")
+            self.filename = os.path.join(
+                self.pm_logfile_dir
+                if persistent_memory_session
+                else self.npm_logfile_dir,
+                f"session_{timestamp}.txt".replace(":", "-"),
+            )
+            self.last_log_message = f"[{timestamp}][SYSTEM, system] Start session on {weekday} at {timestamp}, session token {self.session_token}."
+            print(self.last_log_message)
+            with open(self.filename, "w") as logfile:
+                logfile.write(self.last_log_message + "\n")
 
         self.socketio = socketio
-        if socketio is not None:
+        if socketio is not None and session_token is not None:
             print("emit conversationmessage", self.session_token, self.last_log_message)
             self.socketio.emit(
                 "convmsg",
@@ -831,6 +884,33 @@ def prompt_gpt_settings(input_text, language):
     return formatted_settings_list
 
 
+def prompt_gpt_summarization(
+    conversation_string: str, weekday: str, date: str, logger: Logger
+):
+    prompt = [
+        {
+            "role": "user",
+            "content": f'This conversation happened on {weekday}, {date}. Summarize the content like it was memory database entry of Charlie (gender neutral). Keep it short. Include important events, information and key words and make sure for long conversations that you include all information. At the end, add tags that include activities, events, key words and emotions. Only show Content and Tags.\n\n"'
+            + conversation_string
+            + '"',
+        }
+    ]
+    try:
+        result = openai.ChatCompletion.create(
+            model=gpt_models[Mode.INFORMATION],
+            messages=prompt,
+            max_tokens=1000,
+            temperature=0.0,
+            presence_penalty=0.0,
+            frequency_penalty=0.0,
+        )
+    except Exception as e:
+        err_msg = str(e)
+        return False, err_msg
+    logger.track_stats(api="chatgpt", tokens=result["usage"]["total_tokens"])
+    return True, result["choices"][0]["message"]["content"]
+
+
 ####################################################################
 #####     MISC      ################################################
 ####################################################################
@@ -926,11 +1006,11 @@ def suppress_stdout():
             sys.stdout = old_stdout
 
 
-def memorize_conversations(active_session_tokens: list[str]):
+def memorize_conversations(active_session_tokens: list[str], logger: Logger):
+    SUMMARIZATION_CHUNK_MAX_CHARACTER_COUNT = 12000
     sessions_to_memorize = {}
 
     # search which non-active sessions have to be memorized
-    print(f"Active sessions: {active_session_tokens}")
     logfile_dir = os.path.join(
         os.path.dirname(os.path.abspath(__file__)), "..", "logfiles"
     )
@@ -943,7 +1023,6 @@ def memorize_conversations(active_session_tokens: list[str]):
 
         for leftover_session in leftover_persistent_sessions:
             file_path = os.path.join(raw_logfiles_dir, leftover_session)
-            # f"[{timestamp}][SYSTEM, system] Start session on {weekday} at {timestamp}, session token {self.session_token}."
             with open(file_path, "r") as sess_file:
                 line = sess_file.readline()
                 session_token_match = re.search("(?: session token )(.*?).$", line)
@@ -954,21 +1033,80 @@ def memorize_conversations(active_session_tokens: list[str]):
                     sessions_to_memorize[user_dir] = [leftover_session]
                 else:
                     sessions_to_memorize[user_dir] += [leftover_session]
-    print(sessions_to_memorize)
 
     # for each session to memorize
-    # gather meta information like date, day of week, etc.
-    # filter out system messages
-    # split the conversations in chunks that suit chatgpt summarization
-    # let ChatGPT summarize the content (user info and charlie info has to be included)
-    # create openai vector embedding
-    # read/create vector db file
-    # if embedding is inside -> skip, if not:
-    # append it to numpy array and save index and pickle array
-    # read/create summary db (JSON)
-    # create new entry with saved index and the summarized info
-    # dump json to file
-    # delete raw log file
+    for uuid, session_filenames in sessions_to_memorize.items():
+        memory_vector_db_path = os.path.join(
+            logfile_dir, uuid, "persistent_session", "memory_vector_db.pickle"
+        )
+        memory_summary_db_path = os.path.join(
+            logfile_dir, uuid, "persistent_session", "memory_summary_db.pickle"
+        )
+        memory_database = MemoryDatabase(memory_vector_db_path, memory_summary_db_path)
+        for session_filename in session_filenames:
+            session_file_path = os.path.join(
+                logfile_dir,
+                uuid,
+                "persistent_session",
+                "raw_logfiles",
+                session_filename,
+            )
+            with open(
+                session_file_path,
+                "r",
+            ) as session_file:
+                # gather meta information like date, day of week, etc.
+                meta_info = session_file.readline()
+                weekday = re.search(
+                    "(?:Start session on )(.*?)(?:\s.*$)", meta_info
+                ).group(1)
+                date = re.search(
+                    "(?:Start session on )(?:.*?)(?:at )(.*?)(?:T.*$)", meta_info
+                ).group(1)
+                # filter out system messages
+                # split the conversations in chunks that suit chatgpt summarization
+                filtered_message_chunks = []
+                chunk = ""
+                chunk_length = 0
+                for line in session_file:
+                    if "[SYSTEM, " in line:
+                        continue
+                    name_match = re.search("(?:\[CONVERSATION, )(.*?)(?:\])", line)
+                    content_match = re.search("(?:\[.*?\]\[.*?\] )(.*)", line)
+                    if name_match is None or content_match is None:
+                        continue
+                    name = name_match.group(1)
+                    content = content_match.group(1)
+                    line_length = len(name) + len(content) + 3
+                    chunk += name + ": " + content + "\n"
+                    chunk_length += line_length
+                    if chunk_length >= SUMMARIZATION_CHUNK_MAX_CHARACTER_COUNT:
+                        filtered_message_chunks.append(chunk)
+                        chunk = ""
+                        chunk_length = 0
+                        continue
+                if chunk_length > 0:
+                    filtered_message_chunks.append(chunk)
+
+            session_file_success = True
+            for chunk in filtered_message_chunks:
+                # let ChatGPT summarize the content (user info and charlie info has to be included)
+                success, summary = prompt_gpt_summarization(
+                    chunk, weekday, date, logger
+                )
+                if not success:
+                    session_file_success = False
+                    break
+                summary = "Date: " + weekday + ", " + date + ":\n" + summary
+                # create openai vector embedding
+                embedding = openai.Embedding.create(
+                    input=summary, model="text-embedding-ada-002"
+                )["data"][0]["embedding"]
+                memory_database.insert_memory(embedding, summary)
+            if not session_file_success:
+                break
+            memory_database.save_to_disk()
+            os.remove(session_file_path)
 
 
 ####################################################################
