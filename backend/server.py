@@ -531,8 +531,14 @@ def _memorization_cleanup(quit_event):
             break
         if update_timer >= update_after:
             print("Start memorization progress in background..")
-            active_session_tokens = list(charlie_sessions.keys())
-            uhf.memorize_conversations(active_session_tokens, memorization_logger)
+            active_logfiles = []
+            for session in charlie_sessions.values():
+                if (
+                    session.charlie_instance.initialized
+                    and session.charlie_instance.logger.filename is not None
+                ):
+                    active_logfiles.append(session.charlie_instance.logger.filename)
+            uhf.memorize_conversations(active_logfiles, memorization_logger)
             update_timer = 0
             print("Finished memorization progress.")
         update_timer += check_every

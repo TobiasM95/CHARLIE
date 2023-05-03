@@ -404,6 +404,9 @@ class Logger:
             os.path.dirname(os.path.abspath(__file__)), "..", "stats"
         )
         os.makedirs(self.stats_dir, exist_ok=True)
+        self.npm_logfile_dir = None
+        self.pm_logfile_dir = None
+        self.filename = None
         if userUID is not None:
             self.npm_logfile_dir = os.path.join(
                 os.path.dirname(os.path.abspath(__file__)),
@@ -1009,7 +1012,7 @@ def suppress_stdout():
             sys.stdout = old_stdout
 
 
-def memorize_conversations(active_session_tokens: list[str], logger: Logger):
+def memorize_conversations(active_logfiles: list[str], logger: Logger):
     SUMMARIZATION_CHUNK_MAX_CHARACTER_COUNT = 12000
     sessions_to_memorize = {}
 
@@ -1026,20 +1029,11 @@ def memorize_conversations(active_session_tokens: list[str], logger: Logger):
 
         for leftover_session in leftover_persistent_sessions:
             file_path = os.path.join(raw_logfiles_dir, leftover_session)
-            with open(file_path, "r") as sess_file:
-                line = sess_file.readline()
-                session_token_match = re.search("(?: session token )(.*?).$", line)
-                session_token = None
-                if session_token_match is not None:
-                    session_token = session_token_match.group(1)
-                if (
-                    session_token is not None
-                    and session_token not in active_session_tokens
-                ):
-                    if user_dir not in sessions_to_memorize:
-                        sessions_to_memorize[user_dir] = [leftover_session]
-                    else:
-                        sessions_to_memorize[user_dir] += [leftover_session]
+            if file_path not in active_logfiles:
+                if user_dir not in sessions_to_memorize:
+                    sessions_to_memorize[user_dir] = [leftover_session]
+                else:
+                    sessions_to_memorize[user_dir] += [leftover_session]
 
     # for each session to memorize
     for uuid, session_filenames in sessions_to_memorize.items():
@@ -1064,12 +1058,16 @@ def memorize_conversations(active_session_tokens: list[str], logger: Logger):
             ) as session_file:
                 # gather meta information like date, day of week, etc.
                 meta_info = session_file.readline()
-                weekday = re.search(
+                weekday_match = re.search(
                     "(?:Start session on )(.*?)(?:\s.*$)", meta_info
-                ).group(1)
-                date = re.search(
+                )
+                date_match = re.search(
                     "(?:Start session on )(?:.*?)(?:at )(.*?)(?:T.*$)", meta_info
-                ).group(1)
+                )
+                if weekday_match is None or date_match is None:
+                    continue
+                weekday = weekday_match.group(1)
+                date = date_match.group(1)
                 # filter out system messages
                 # split the conversations in chunks that suit chatgpt summarization
                 filtered_message_chunks = []
