@@ -1,22 +1,40 @@
 import re
 from functools import cache
 import copy
+from datetime import datetime
+import multiprocessing
+
 from ..data_structs import Language
 
 # conversation prompt interfaces have to implement at least the following functions and dictionaries:
 #
 # chat_gpt_parameter_dict: dict["temperature" | "presence_penalty", | "frequency_penalty", float]
 #
-# get_conversation_prompt_chat_gpt(translation_model, input_text, language, user_name, memory_buffer, remembered_message_count, mood, additional_parameters: dict | None)
+# get_conversation_prompt_chat_gpt(translation_model, input_text, language, user_name, memory_buffer, remembered_message_count, mood, logger, additional_parameters: dict | None)
 # -> chatgpt_prompt: list, mood_style: str | "undefined", message_length: str | "undefined"
 #
-# from functools import cache NOTE: THE RETURNED LIST NEEDS TO BE DEEPCOPIED BEFORE BEING MUTATED
-# @cache
-# _get_base_prompt(language, translation_model, *args)
+# _get_base_prompt(language, translation_model, logger, *args)
 # -> prompt: list[dict["role" | "content", str]]
 #
 # _extract_prompt_answers(full_answer: str, *args)
 # -> answer_dict: dict["raw" | "clean" | "style", str | None]
+
+
+def cache_notify(func):
+    func = cache(func)
+
+    def notify_wrapper(*args, **kwargs):
+        stats = func.cache_info()
+        hits = stats.hits
+        results = func(*args, **kwargs)
+        stats = func.cache_info()
+        if stats.hits > hits:
+            return True, results
+        else:
+            return False, results
+
+    return notify_wrapper
+
 
 chat_gpt_parameter_dict = {
     "temperature": 1.0,
@@ -33,6 +51,7 @@ def get_conversation_prompt_chat_gpt(
     memory_buffer,
     remembered_message_count,
     mood,
+    logger,
     additional_parameters=None,
 ):
     print("DEBUG MEMORY", remembered_message_count, len(memory_buffer))
@@ -54,22 +73,36 @@ def get_conversation_prompt_chat_gpt(
         name,
         memory_buffer,
         remembered_message_count,
+        additional_parameters,
     )
 
-    if language not in mood.style or language not in mood.style_example:
-        mood.translate_style(translation_model, language)
-    mood_style = mood.style[language]
+    mood_style, _ = mood.get_style(translation_model, language)
 
     prompt = copy.deepcopy(
-        _get_base_prompt(language, translation_model, name, mood_style)
+        _get_base_prompt(language, translation_model, logger, name, mood_style)
     )
     print("DEBUG base prompt:", prompt)
+
+    if (
+        "memory-database" in additional_parameters
+        and additional_parameters["memory-database"] is not None
+    ):
+        additional_parameters["memory-excerpt"] = _get_memory_from_database(
+            additional_parameters["memory-database"],
+            relevant_message_pairs,
+            name,
+            text,
+            language,
+            context_length=1,
+        )
+        print("DEBUG retrieved memories:", additional_parameters["memory-excerpt"])
+
     if (
         "situation-description" in additional_parameters
         or "memory-excerpt" in additional_parameters
     ):
         prompt = _enrich_base_prompt(
-            language, translation_model, prompt, additional_parameters
+            language, translation_model, prompt, logger, additional_parameters
         )
     print("DEBUG enriched prompt:", prompt)
 
@@ -85,7 +118,9 @@ def get_conversation_prompt_chat_gpt(
         )
     message_query += (
         "`\n"
-        + _localize(language, translation_model, "With the last message/input:")
+        + _localize_logged(
+            language, translation_model, "With the last message/input:", logger
+        )
         + "\n"
     )
     if text.startswith("("):
@@ -100,59 +135,72 @@ def get_conversation_prompt_chat_gpt(
     return prompt, mood_style, None
 
 
-@cache
-def _get_base_prompt(language, translation_model, name, mood_style):
+def _get_base_prompt(language, translation_model, logger, name, mood_style):
     prompt = [
         {
             "role": "user",
-            "content": _localize(
+            "content": _localize_logged(
                 language,
                 translation_model,
                 f'From now on you pretend to be Charlie having a conversation with {name}. The user inputs will either be messages by {name}, after which you will reply as Charlie or instructions for special messages by Charlie.\nAll your answers will be given in 4 independent parts, separated by an "<or>" separator. You will give a neutral response and then gradually transform the response to the style "{mood_style}" but each message is independent. The message "A. ..." will be neutral, "B. ..." incorporates the style a little bit, "C. ..." is as far as you can go within your guidelines, and "D. ..." is 100% "{mood_style}". Don\'t give an introduction and don\'t continue the conversation. Always answer with exactly 4 messages in this format and don\'t miss the "<or>" separators in between: `\nA. ...\n<or>\nB. ...\n<or>\nC. ...\n<or>\nD. ...\n` like described earlier. If you understand the instructions answer with yes.',
+                logger,
             ),
         },
         {
             "role": "assistant",
-            "content": _localize(language, translation_model, "Yes."),
+            "content": _localize_logged(language, translation_model, "Yes.", logger),
         },
     ]
 
     return prompt
 
 
-def _enrich_base_prompt(language, translation_model, prompt, additional_parameters):
+def _enrich_base_prompt(
+    language, translation_model, prompt, logger, additional_parameters
+):
     enriched_content = ""
     if "situation-description" in additional_parameters:
         enriched_content += (
-            _localize(
+            _localize_logged(
                 language,
                 translation_model,
-                "To help you answer more like Charlie, here is the current situation they're in:",
+                "To help you answer more like Charlie, here is the current date and situation they're in:",
+                logger,
             )
             + "\n"
         )
+        date = datetime.now().strftime("%Y-%m-%d")
+        weekday = datetime.now().strftime("%A")
         enriched_content += (
-            "` " + additional_parameters["situation-description"] + "` \n"
+            f"` Current date: {weekday}, {date} - Current situation: "
+            + additional_parameters["situation-description"]
+            + "` \n"
         )
-    if "memory-excerpt" in additional_parameters:
+    if (
+        "memory-excerpt" in additional_parameters
+        and len(additional_parameters["memory-excerpt"]) > 0
+    ):
         enriched_content += (
-            _localize(
+            _localize_logged(
                 language,
                 translation_model,
                 "Here are some memories of Charlie that you can reference, they include events, old conversations, and other details:",
+                logger,
             )
             + "\n"
         )
-        enriched_content += "` " + additional_parameters["memory-excerpt"] + "` \n"
+        for memory_excerpt in additional_parameters["memory-excerpt"]:
+            enriched_content += "` " + memory_excerpt + "` \n"
 
     prompt += [
         {"role": "user", "content": enriched_content},
         {
             "role": "assistant",
-            "content": _localize(
+            "content": _localize_logged(
                 language,
                 translation_model,
                 f"I recognize the situation and will reference the memories of Charlie if they are relevant to the conversation.",
+                logger,
             ),
         },
     ]
@@ -160,8 +208,9 @@ def _enrich_base_prompt(language, translation_model, prompt, additional_paramete
     return prompt
 
 
-def extract_prompt_answers(full_answer):
+def extract_prompt_answers(full_answer: str):
     print("DEBUG", full_answer)
+    full_answer = full_answer.replace("<br>", "<or>")
     answer_1 = list(re.finditer("(?:A\.\s*)(.*)", full_answer))[-1]
     answer_2 = list(re.finditer("(?:B\.\s*)(.*)", full_answer))[-1]
     answer_3 = list(re.finditer("(?:C\.\s*)(.*)", full_answer))[-1]
@@ -202,13 +251,62 @@ def _contains_bad_text(message):
     return False
 
 
-@cache
+def _get_memory_from_database(
+    memory_database,
+    relevant_message_pairs: list,
+    name: str,
+    text: str,
+    language: Language,
+    context_length: int = 1,
+) -> list:
+    date = datetime.now().strftime("%Y-%m-%d")
+    weekday = datetime.now().strftime("%A")
+
+    if context_length > len(relevant_message_pairs) + 1:
+        context_length = len(relevant_message_pairs) + 1
+
+    context_list = [f"Current date: {weekday}, {date}\n{name}: {text}"]
+
+    for message_pair in list(reversed(relevant_message_pairs))[: context_length - 1]:
+        context_list.append(
+            f"Current date: {weekday}, {date}\n"
+            + f"{name}: {message_pair[language].msg_user}"
+            + "\n"
+            + f"Charlie: {message_pair[language].msg_charlie}"
+        )
+
+    from ..helper_functions import get_text_embedding
+
+    with multiprocessing.Pool(context_length) as pool:
+        embeddings = pool.map(get_text_embedding, context_list)
+
+    memories = []
+    for embedding in embeddings:
+        memories += memory_database.retrieve_memory(embedding, 1)
+
+    return memories[::-1]
+
+
+def _localize_logged(
+    language, translation_model, message, logger, source_language=Language.ENGLISH
+):
+    was_cached, localization = _localize(
+        language, translation_model, message, source_language
+    )
+    if was_cached:
+        logger.track_stats("deepl", message)
+    return localization
+
+
+@cache_notify
 def _localize(language, translation_model, message, source_language=Language.ENGLISH):
     if language == source_language:
         return message
 
     from ..helper_functions import translate_transcript
 
-    return translate_transcript(
+    message_localized = translate_transcript(
         translation_model, message, source_language, language
     ).text
+
+    return message_localized

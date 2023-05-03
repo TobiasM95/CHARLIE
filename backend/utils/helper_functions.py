@@ -52,13 +52,20 @@ class Mood:
         [0.8, 0.0, 0.0, 0.05, 0.15],
     ]
 
-    def __init__(self, style_en="a witty sarcastic friend", logger=None):
-        self.mood = Mood.NEUTRAL
-        self.style = {}
+    def __init__(
+        self,
+        style_en="a witty sarcastic friend",
+        situation_en="hanging out together",
+        logger=None,
+    ):
+        self.mood: Mood = Mood.NEUTRAL
+        self.style: dict[Language, str] = {}
         self.style[Language.ENGLISH] = style_en
-        self.style_example = {}
+        self.style_example: dict[Language, str] = {}
         self.style_example[Language.ENGLISH] = self._get_style_example(style_en, logger)
-        self.logger = logger
+        self.situation: dict[Language, str] = {}
+        self.situation[Language.ENGLISH] = situation_en
+        self.logger: Logger = logger
         logger.log(
             Mode.SYSTEM,
             "system",
@@ -124,18 +131,43 @@ class Mood:
                 )
         return re.sub(r"[^a-zA-Z0-9.,!? ]", "", re.sub(r"^[0-9]\.\s*", "", answer))
 
-    def translate_style(self, translation_model, language):
-        self.style[language] = translate_transcript(
-            translation_model, self.style[Language.ENGLISH], Language.ENGLISH, language
-        ).text
-        self.logger.track_stats("deepl", self.style[Language.ENGLISH])
-        self.style_example[language] = translate_transcript(
-            translation_model,
-            self.style_example[Language.ENGLISH],
-            Language.ENGLISH,
-            language,
-        ).text
-        self.logger.track_stats("deepl", self.style_example[Language.ENGLISH])
+    def get_style(self, translation_model, language):
+        if language not in self.style or language not in self.style_example:
+            self._translate_style(translation_model, language)
+        return self.style[language], self.style_example[language]
+
+    def get_situation(self, translation_model, language):
+        if language not in self.situation:
+            self._translate_situation(translation_model, language)
+        return self.situation[language]
+
+    def _translate_style(self, translation_model, language):
+        if language not in self.style:
+            self.style[language] = translate_transcript(
+                translation_model,
+                self.style[Language.ENGLISH],
+                Language.ENGLISH,
+                language,
+            ).text
+            self.logger.track_stats("deepl", self.style[Language.ENGLISH])
+        if language not in self.style_example:
+            self.style_example[language] = translate_transcript(
+                translation_model,
+                self.style_example[Language.ENGLISH],
+                Language.ENGLISH,
+                language,
+            ).text
+            self.logger.track_stats("deepl", self.style_example[Language.ENGLISH])
+
+    def _translate_situation(self, translation_model, language):
+        if language not in self.situation:
+            self.situation[language] = translate_transcript(
+                translation_model,
+                self.situation[Language.ENGLISH],
+                Language.ENGLISH,
+                language,
+            ).text
+            self.logger.track_stats("deepl", self.situation[Language.ENGLISH])
 
     def get_message_length(self, user_msg):
         length_options = [
@@ -364,6 +396,10 @@ class MemoryDatabase:
         return True
 
     def retrieve_memory(self, embedding: list[float], num_memories: int):
+        if self.memory_vector_db.shape[0] == 0:
+            return []
+        if num_memories > self.memory_vector_db.shape[0]:
+            num_memories = self.memory_vector_db.shape[0]
         if num_memories == 1:
             return [
                 self.memory_summary_db[
@@ -737,15 +773,16 @@ def _elevenlabs_tts_api_ready(language, text):
 
 
 def prompt_gpt(
-    mode,
-    text,
-    language,
-    name,
+    mode: Mode,
+    text: str,
+    language: Language,
+    name: str,
     translation_model,
     memory_buffer=None,
-    remembered_message_count=3,
-    mood=None,
-    logger=None,
+    remembered_message_count: int = 3,
+    mood: Mood | None = None,
+    logger: Logger | None = None,
+    memory_database: MemoryDatabase | None = None,
 ):
     if mode == Mode.CONVERSATION:
         chat_gpt_messages, reply_style, reply_length = get_conversation_prompt_chat_gpt(
@@ -756,9 +793,12 @@ def prompt_gpt(
             memory_buffer,
             remembered_message_count,
             mood,
+            logger,
             {
-                "situation-description": "Tobi and Charlie are both at their PCs and talking over the internet",
-                "memory-excerpt": "Yesterday was Sunday. Charlie owns a cat. Charlie went fishing yesterday. Charlie likes to play Doom on her Nintendo Switch",
+                "situation-description": mood.get_situation(
+                    translation_model, language
+                ),
+                "memory-database": memory_database,
             },
         )
         try:
@@ -896,7 +936,7 @@ def prompt_gpt_summarization(
     prompt = [
         {
             "role": "user",
-            "content": f'This conversation happened on {weekday}, {date}. Summarize the content like it was memory database entry of Charlie (gender neutral). Keep it short. Include important events, information and key words and make sure for long conversations that you include all information. At the end, add tags that include activities, events, key words and emotions. Only show Content and Tags.\n\n"'
+            "content": f'This conversation happened on {weekday}, {date}. Summarize the content like it was memory database entry of Charlie (gender neutral). Keep it short. Include important events, information and key words and make sure for long conversations that you include all information. At the end, add tags that include activities, events, key words and emotions. Output format should be "Date:", "Content:" and "Tags:" on a single line each.\n\n"'
             + conversation_string
             + '"',
         }
@@ -915,6 +955,13 @@ def prompt_gpt_summarization(
         return False, err_msg
     logger.track_stats(api="chatgpt", tokens=result["usage"]["total_tokens"])
     return True, result["choices"][0]["message"]["content"]
+
+
+def get_text_embedding(summary):
+    # TODO: Track usage for embeddings
+    return openai.Embedding.create(input=summary, model="text-embedding-ada-002")[
+        "data"
+    ][0]["embedding"]
 
 
 ####################################################################
@@ -1105,9 +1152,7 @@ def memorize_conversations(active_logfiles: list[str], logger: Logger):
                     break
                 summary = "Date: " + weekday + ", " + date + ":\n" + summary
                 # create openai vector embedding
-                embedding = openai.Embedding.create(
-                    input=summary, model="text-embedding-ada-002"
-                )["data"][0]["embedding"]
+                embedding = get_text_embedding(summary)
                 db_has_changed = memory_database.insert_memory(embedding, summary)
             if not session_file_success:
                 break

@@ -6,7 +6,8 @@
         "gender-user": "male",
         "language": "EN-US",
         "memory_size": 3,
-        "style_en": "good friend",
+        "style_en": "stereotypical good mate",
+        "situation_end": "hanging out together",
         "tts-method": "google_tts"
     },
     "recording_settings": {

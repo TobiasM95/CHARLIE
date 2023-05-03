@@ -8,16 +8,31 @@ from ..data_structs import Language
 #
 # chat_gpt_parameter_dict: dict["temperature" | "presence_penalty", | "frequency_penalty", float]
 #
-# get_conversation_prompt_chat_gpt(translation_model, input_text, language, user_name, memory_buffer, remembered_message_count, mood, additional_parameters: dict | None)
+# get_conversation_prompt_chat_gpt(translation_model, input_text, language, user_name, memory_buffer, remembered_message_count, mood, logger, additional_parameters: dict | None)
 # -> chatgpt_prompt: list, mood_style: str | "undefined", message_length: str | "undefined"
 #
-# from functools import cache NOTE: THE RETURNED LIST NEEDS TO BE DEEPCOPIED BEFORE BEING MUTATED
-# @cache
-# _get_base_prompt(language, translation_model, *args)
+# _get_base_prompt(language, translation_model, logger, *args)
 # -> prompt: list[dict["role" | "content", str]]
 #
 # _extract_prompt_answers(full_answer: str, *args)
 # -> answer_dict: dict["raw" | "clean" | "style", str | None]
+
+
+def cache_notify(func):
+    func = cache(func)
+
+    def notify_wrapper(*args, **kwargs):
+        stats = func.cache_info()
+        hits = stats.hits
+        results = func(*args, **kwargs)
+        stats = func.cache_info()
+        if stats.hits > hits:
+            return True, results
+        else:
+            return False, results
+
+    return notify_wrapper
+
 
 chat_gpt_parameter_dict = {
     "temperature": 0.3,
@@ -34,6 +49,7 @@ def get_conversation_prompt_chat_gpt(
     memory_buffer,
     remembered_message_count,
     mood,
+    logger,
     additional_parameters=None,
 ):
     print("DEBUG MEMORY", remembered_message_count, len(memory_buffer))
@@ -56,14 +72,13 @@ def get_conversation_prompt_chat_gpt(
         remembered_message_count,
     )
 
-    if language not in mood.style or language not in mood.style_example:
-        mood.translate_style(translation_model, language)
-    mood_style = mood.style[language]
-    style_example = mood.style_example[language]
+    mood_style, style_example = mood.get_style(translation_model, language)
     message_length = mood.get_message_length(text)
 
     prompt = copy.deepcopy(
-        _get_base_prompt(language, translation_model, name, mood_style, style_example)
+        _get_base_prompt(
+            language, translation_model, logger, name, mood_style, style_example
+        )
     )
 
     for message_pair in reversed(relevant_message_pairs):
@@ -88,8 +103,9 @@ def get_conversation_prompt_chat_gpt(
     return prompt, mood_style, message_length
 
 
-@cache
-def _get_base_prompt(language, translation_model, name, mood_style, style_example):
+def _get_base_prompt(
+    language, translation_model, logger, name, mood_style, style_example
+):
     prompt += [
         {
             "role": "system",
@@ -105,15 +121,13 @@ def _get_base_prompt(language, translation_model, name, mood_style, style_exampl
         },
     ]
     if language != Language.ENGLISH:
-        from ..helper_functions import translate_transcript
-
         prompt_translated = []
         for part in prompt:
             prompt_translated.append(
                 {
                     "role": "system",
-                    "content": translate_transcript(
-                        translation_model, part["content"], Language.ENGLISH, language
+                    "content": _localize_logged(
+                        language, translation_model, part["content"], logger
                     ),
                 }
             )
@@ -131,3 +145,28 @@ def extract_prompt_answers(full_answer):
         extracted_answer[0] if extracted_answer is not None else full_answer
     ).strip()
     return answer_dict
+
+
+def _localize_logged(
+    language, translation_model, message, logger, source_language=Language.ENGLISH
+):
+    was_cached, localization = _localize(
+        language, translation_model, message, logger, source_language
+    )
+    if was_cached:
+        logger.track_stats("deepl", message)
+    return localization
+
+
+@cache_notify
+def _localize(language, translation_model, message, source_language=Language.ENGLISH):
+    if language == source_language:
+        return message
+
+    from ..helper_functions import translate_transcript
+
+    message_localized = translate_transcript(
+        translation_model, message, source_language, language
+    ).text
+
+    return message_localized

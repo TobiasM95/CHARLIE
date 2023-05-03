@@ -123,6 +123,7 @@ function ConversationsPage({ changeAppTheme, logOutFunc, userFirstName, userSUB 
   const [settingLanguage, setSettingLanguage, settingLanguageRef] = useState<string>("EN-US");
   const [settingMemorySize, setSettingMemorySize, settingMemorySizeRef] = useState<number>(3);
   const [settingStyle, setSettingStyle, settingStyleRef] = useState<string>("stereotypical good mate");
+  const [settingSituation, setSettingSituation, settingSituationRef] = useState<string>("hanging out together");
   const [settingTTSMethod, setSettingTTSMethod, settingTTSMethodRef] = useState<string>("google_tts");
 
   function handleLogOutSelection() {
@@ -204,6 +205,7 @@ function ConversationsPage({ changeAppTheme, logOutFunc, userFirstName, userSUB 
             "language": settingLanguageRef.current,
             "memory_size": settingMemorySizeRef.current,
             "style_en": settingStyleRef.current === "" ? "stereotypical good mate" : settingStyleRef.current,
+            "situation_en": settingSituationRef.current === "" ? "hanging out together" : settingSituationRef.current,
             "tts-method": settingTTSMethodRef.current
           }
         )
@@ -340,6 +342,7 @@ function ConversationsPage({ changeAppTheme, logOutFunc, userFirstName, userSUB 
           "language": settingLanguageRef.current,
           "memory_size": settingMemorySizeRef.current,
           "style_en": settingStyleRef.current === "" ? "a good mate" : settingStyleRef.current,
+          "situation_en": settingSituationRef.current === "" ? "hanging out together" : settingSituationRef.current,
           "tts-method": settingTTSMethodRef.current
         }
       );
@@ -811,17 +814,44 @@ function ConversationsPage({ changeAppTheme, logOutFunc, userFirstName, userSUB 
               <TextField
                 fullWidth id="styleDescInput"
                 margin="dense"
-                maxRows={1}
+                multiline
+                maxRows={3}
                 size="small"
-                variant="standard"
                 inputProps={{
                   maxLength: 150,
-                  placeholder: "a good mate",
+                  placeholder: "stereotypical good mate",
                   title: "Allowed characters are: a-z A-Z äöüÄÖÜßáéíóúàèìòùâêîôûÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛ space,"
                 }}
                 value={settingStyle}
                 onChange={(e) => {
                   setSettingStyle(e.target.value.replaceAll(/[^a-zA-ZäöüÄÖÜßáéíóúàèìòùâêîôûÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛ ,]/g, ""))
+                }}
+              />
+            </ListItem>
+            <ListItem
+              key="charlieSituationDescLabel"
+              sx={{ pb: 0 }}
+            >
+              <ListItemText primary="Situation description:" />
+            </ListItem>
+            <ListItem
+              key="charlieSituationDescInput"
+              sx={{ pt: 0 }}
+            >
+              <TextField
+                fullWidth id="situationDescInput"
+                margin="dense"
+                multiline
+                maxRows={3}
+                size="small"
+                inputProps={{
+                  maxLength: 150,
+                  placeholder: "hanging out together",
+                  title: "Allowed characters are: a-z A-Z äöüÄÖÜßáéíóúàèìòùâêîôûÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛ space,"
+                }}
+                value={settingSituation}
+                onChange={(e) => {
+                  setSettingSituation(e.target.value.replaceAll(/[^a-zA-ZäöüÄÖÜßáéíóúàèìòùâêîôûÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛ ,]/g, ""))
                 }}
               />
             </ListItem>

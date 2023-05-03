@@ -1,13 +1,13 @@
 {
     "whisper_minutes": 0,
-    "chatgpt_tokens": 10785,
-    "deepl_character": 0,
-    "google_tts_character": 0,
+    "chatgpt_tokens": 18049,
+    "deepl_character": 3798,
+    "google_tts_character": 526,
     "elevenlabs_tts_character": 0,
     "whisper_cost": 0,
-    "chatgpt_cost": 0.02157,
-    "deepl_percentage_used": 0,
-    "google_tts_percentage_used": 0,
-    "google_tts_cost": 0,
+    "chatgpt_cost": 0.036098,
+    "deepl_percentage_used": 0.007596,
+    "google_tts_percentage_used": 0.000526,
+    "google_tts_cost": 0.0,
     "elevenlabs_tts_percentage_used": 0
 }

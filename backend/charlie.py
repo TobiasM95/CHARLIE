@@ -22,9 +22,12 @@ class Charlie:
         base_config=None,
         socketio=None,
         persistent_memory_session=False,
+        memory_database=None,
     ):
         print("DEBUG init charlie with session token", session_token)
         self.session_token = session_token
+        if memory_database is not None:
+            self.memory_database = memory_database
         self.initialized = False
         if no_init:
             return
@@ -62,7 +65,9 @@ class Charlie:
         self.translation_language_source = uds.Language.ENGLISH
         self.translation_language_target = uds.Language.GERMAN
         self.mood = uhf.Mood(
-            style_en=self.config["base"]["style_en"], logger=self.logger
+            style_en=self.config["base"]["style_en"],
+            situation_en=self.config["base"]["situation_en"],
+            logger=self.logger,
         )
         self.tts_method = self.config["base"]["tts-method"]
 
@@ -268,6 +273,7 @@ class Charlie:
                 self.memory_buffer_remember_count,
                 self.mood,
                 self.logger,
+                self.memory_database,
             )
             # we can't track here cause we already extracted most of the info inside the prompt_gpt function
             output_text = self._post_process_text_output(output_text_dict)
@@ -830,7 +836,9 @@ class Charlie:
         self.gender_user = uds.Gender.get(self.config["base"]["gender-user"])
         self.language = uds.Language.get(self.config["base"]["language"])
         self.mood = uhf.Mood(
-            style_en=self.config["base"]["style_en"], logger=self.logger
+            style_en=self.config["base"]["style_en"],
+            situation_en=self.config["base"]["situation_en"],
+            logger=self.logger,
         )
         self.memory_buffer_remember_count = self.config["base"]["memory_size"]
         self.tts_method = self.config["base"]["tts-method"]
@@ -850,10 +858,33 @@ class CharlieSession:
         self.user_uid: str = user_uid
         self.session_token: str = self._create_session_token(user_uid)
         self.last_update: datetime.datetime = datetime.datetime.today()
+        memory_database = None
+        if persistent:
+            memory_vector_db_path = os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                "logfiles",
+                user_uid,
+                "persistent_session",
+                "memory_vector_db.pickle",
+            )
+            memory_summary_db_path = os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                "logfiles",
+                user_uid,
+                "persistent_session",
+                "memory_summary_db.pickle",
+            )
+            memory_database = uhf.MemoryDatabase(
+                memory_vector_db_path, memory_summary_db_path
+            )
+            print(
+                f"DEBUG initialized memory database with {memory_database.memory_vector_db.shape[0]} memories"
+            )
         self.charlie_instance: Charlie = Charlie(
             session_token=self.session_token,
             no_init=True,
             persistent_memory_session=persistent,
+            memory_database=memory_database,
         )
         self.charlie_is_responsive: bool = True
         self.persistent_memory_session: bool = persistent
