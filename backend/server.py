@@ -442,7 +442,10 @@ def _set_responsiveness(session_token: str, new_responsiveness_value: bool) -> N
     global charlie_sessions
     mutex.acquire()
     try:
-        charlie_sessions[session_token].charlie_is_responsive = new_responsiveness_value
+        if session_token in charlie_sessions:
+            charlie_sessions[
+                session_token
+            ].charlie_is_responsive = new_responsiveness_value
     finally:
         mutex.release()
 

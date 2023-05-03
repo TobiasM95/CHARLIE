@@ -1029,13 +1029,17 @@ def memorize_conversations(active_session_tokens: list[str], logger: Logger):
             with open(file_path, "r") as sess_file:
                 line = sess_file.readline()
                 session_token_match = re.search("(?: session token )(.*?).$", line)
+                session_token = None
                 if session_token_match is not None:
                     session_token = session_token_match.group(1)
-            if session_token not in active_session_tokens:
-                if user_dir not in sessions_to_memorize:
-                    sessions_to_memorize[user_dir] = [leftover_session]
-                else:
-                    sessions_to_memorize[user_dir] += [leftover_session]
+                if (
+                    session_token is not None
+                    and session_token not in active_session_tokens
+                ):
+                    if user_dir not in sessions_to_memorize:
+                        sessions_to_memorize[user_dir] = [leftover_session]
+                    else:
+                        sessions_to_memorize[user_dir] += [leftover_session]
 
     # for each session to memorize
     for uuid, session_filenames in sessions_to_memorize.items():

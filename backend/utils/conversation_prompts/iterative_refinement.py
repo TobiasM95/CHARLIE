@@ -197,6 +197,8 @@ def _contains_bad_text(message):
         return True
     elif "how can i make" in msg_low:
         return True
+    elif "what can i do for you" in msg_low:
+        return True
     return False
 
 
