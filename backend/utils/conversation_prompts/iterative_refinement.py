@@ -106,30 +106,41 @@ def get_conversation_prompt_chat_gpt(
         )
     print("DEBUG enriched prompt:", prompt)
 
-    message_query = (
-        "With all the information above, respond as Charlie to this excerpt: `\n"
-    )
-    for message_pair in reversed(relevant_message_pairs):
+    message_query = ""
+    if len(relevant_message_pairs) > 0:
         message_query += (
-            f"{name}: {message_pair[language].msg_user}"
-            + "\n"
-            + f"Charlie: {message_pair[language].msg_charlie}"
-            + "\n"
+            'With all the information above, this is the current excerpt:\n"'
         )
+        reversed_relevant_message_pairs = list(reversed(relevant_message_pairs))
+        for message_pair in reversed_relevant_message_pairs[:-1]:
+            message_query += (
+                f"{name}: {message_pair[language].msg_user}"
+                + "\n"
+                + f"Charlie: {message_pair[language].msg_charlie}"
+                + "\n"
+            )
+        message_query += (
+            f"{name}: {reversed_relevant_message_pairs[-1][language].msg_user}"
+            + "\n"
+            + f"Charlie: {reversed_relevant_message_pairs[-1][language].msg_charlie}"
+            + '"\n'
+        )
+
     message_query += (
-        "`\n"
-        + _localize_logged(
-            language, translation_model, "With the last message/input:", logger
+        _localize_logged(
+            language, translation_model, "Respond to the last message/input:", logger
         )
         + "\n"
     )
     if text.startswith("("):
-        message_query += f"` {text} `"
+        message_query += f'"{text}"'
     else:
-        message_query += f"` {name}: {text} `"
+        message_query += f'"{name}: {text}"'
     print("DEBUG message_query", message_query)
 
-    prompt.append({"role": "user", "content": message_query})
+    prompt = [
+        {"role": "user", "content": prompt[0]["content"] + "\n\n" + message_query}
+    ]
 
     print("DEBUG", prompt, mood_style)
     return prompt, mood_style, None
@@ -142,14 +153,10 @@ def _get_base_prompt(language, translation_model, logger, name, mood_style):
             "content": _localize_logged(
                 language,
                 translation_model,
-                f'From now on you pretend to be Charlie having a conversation with {name}. The user inputs will either be messages by {name}, after which you will reply as Charlie or instructions for special messages by Charlie.\nAll your answers will be given in 4 independent parts, separated by an "<or>" separator. You will give a neutral response and then gradually transform the response to the style "{mood_style}" but each message is independent. The message "A. ..." will be neutral, "B. ..." incorporates the style a little bit, "C. ..." is as far as you can go within your guidelines, and "D. ..." is 100% "{mood_style}". Don\'t give an introduction and don\'t continue the conversation. Always answer with exactly 4 messages in this format and don\'t miss the "<or>" separators in between: `\nA. ...\n<or>\nB. ...\n<or>\nC. ...\n<or>\nD. ...\n` like described earlier. If you understand the instructions answer with yes.',
+                f'From now on you pretend to be Charlie having a conversation with {name}. The user inputs will either be messages by {name}, after which you will reply as Charlie or instructions for special messages by Charlie.\nAll your answers will be given in 4 independent parts, separated by an "<or>" separator. You will give a neutral response and then gradually transform the response to the style "{mood_style}" but each message is independent. The message "A. ..." will be neutral, "B. ..." incorporates the style a little bit, "C. ..." is as far as you can go within your guidelines, and "D. ..." is 100% "{mood_style}". Don\'t give an introduction and don\'t continue the conversation. Always answer with exactly 4 messages in this format and don\'t miss the "<or>" separators in between:\n"A. ...\n<or>\nB. ...\n<or>\nC. ...\n<or>\nD. ..."\nlike described earlier.',
                 logger,
             ),
-        },
-        {
-            "role": "assistant",
-            "content": _localize_logged(language, translation_model, "Yes.", logger),
-        },
+        }
     ]
 
     return prompt
@@ -172,10 +179,12 @@ def _enrich_base_prompt(
         date = datetime.now().strftime("%Y-%m-%d")
         weekday = datetime.now().strftime("%A")
         enriched_content += (
-            f"` Current date: {weekday}, {date} - Current situation: "
+            f'"Current date: {weekday}, {date} - Current situation: '
             + additional_parameters["situation-description"]
-            + "` \n"
+            + '"'
         )
+        if "memory-excerpt" in additional_parameters:
+            enriched_content += "\n"
     if (
         "memory-excerpt" in additional_parameters
         and len(additional_parameters["memory-excerpt"]) > 0
@@ -189,20 +198,12 @@ def _enrich_base_prompt(
             )
             + "\n"
         )
-        for memory_excerpt in additional_parameters["memory-excerpt"]:
-            enriched_content += "` " + memory_excerpt + "` \n"
+        for memory_excerpt in additional_parameters["memory-excerpt"][:-1]:
+            enriched_content += '"' + memory_excerpt + '"\n'
+        enriched_content += '"' + additional_parameters["memory-excerpt"][-1] + '"'
 
-    prompt += [
-        {"role": "user", "content": enriched_content},
-        {
-            "role": "assistant",
-            "content": _localize_logged(
-                language,
-                translation_model,
-                f"I recognize the situation and will reference the memories of Charlie if they are relevant to the conversation.",
-                logger,
-            ),
-        },
+    prompt = [
+        {"role": "user", "content": prompt[0]["content"] + "\n\n" + enriched_content},
     ]
 
     return prompt

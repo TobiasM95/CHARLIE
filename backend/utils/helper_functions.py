@@ -936,7 +936,7 @@ def prompt_gpt_summarization(
     prompt = [
         {
             "role": "user",
-            "content": f'This conversation happened on {weekday}, {date}. Summarize the content like it was memory database entry of Charlie (gender neutral). Keep it short. Include important events, information and key words and make sure for long conversations that you include all information. At the end, add tags that include activities, events, key words and emotions. Output format should be "Date:", "Content:" and "Tags:" on a single line each.\n\n"'
+            "content": f'This conversation happened on {weekday}, {date}. Summarize the content like it was memory database entry of Charlie (gender neutral). Keep it short. Include important events, information and key words and make sure for long conversations that you include all information. At the end, add tags that include activities, events, key words and emotions. Output format should be "Content:" and "Tags:" on a single line each.\n\n"'
             + conversation_string
             + '"',
         }
