@@ -1,12 +1,12 @@
 {
     "whisper_minutes": 0,
-    "chatgpt_tokens": 24074,
-    "deepl_character": 7042,
+    "chatgpt_tokens": 32214,
+    "deepl_character": 8210,
     "google_tts_character": 1169,
     "elevenlabs_tts_character": 0,
     "whisper_cost": 0,
-    "chatgpt_cost": 0.048148,
-    "deepl_percentage_used": 0.014084,
+    "chatgpt_cost": 0.064428,
+    "deepl_percentage_used": 0.01642,
     "google_tts_percentage_used": 0.001169,
     "google_tts_cost": 0.0,
     "elevenlabs_tts_percentage_used": 0
