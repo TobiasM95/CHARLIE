@@ -27,7 +27,7 @@ class CharlieClient(discord.Client):
                 (
                     "000000000000000000000",
                     "sessionKeyLocal",
-                    False,
+                    True,
                     {
                         "userUID": "000000000000000000000",
                         "name": "John",
@@ -75,6 +75,7 @@ class CharlieClient(discord.Client):
             conv_message_content_match = re.search("\[.*?\]\[.*?\](.*)", conv_message)
             if conv_message_content_match is not None:
                 await self.target_channel.send(conv_message_content_match.group(1))
+                self.is_responsive = True
 
     async def async_connect_sio(self):
         print("Connect client")
@@ -91,7 +92,10 @@ class CharlieClient(discord.Client):
         if message.author == client.user:
             return
 
-        if datetime.now() - self.last_message_time < self.message_cooldown:
+        if (
+            datetime.now() - self.last_message_time < self.message_cooldown
+            or not self.is_responsive
+        ):
             return
         self.last_message_time = datetime.now()
 
@@ -106,6 +110,7 @@ class CharlieClient(discord.Client):
         await self.sio.emit(
             "sendmessage", (self.session_token, message.content, self.target_user)
         )
+        self.is_responsive = False
 
 
 token = json.load(
