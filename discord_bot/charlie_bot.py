@@ -18,6 +18,8 @@ class CharlieClient(discord.Client):
         self.sio: socketio.AsyncClient = socketio.AsyncClient()
         self.callbacks()
 
+        self.is_responsive = True
+
     def callbacks(self):
         @self.sio.event
         async def connect():
