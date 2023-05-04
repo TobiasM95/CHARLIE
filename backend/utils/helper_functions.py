@@ -1120,11 +1120,13 @@ def memorize_conversations(active_logfiles: list[str], logger: Logger):
     logfile_dir = os.path.join(
         os.path.dirname(os.path.abspath(__file__)), "..", "logfiles"
     )
+    os.makedirs(logfile_dir, exist_ok=True)
     user_dirs = next(os.walk(logfile_dir))[1]
     for user_dir in user_dirs:
         raw_logfiles_dir = os.path.join(
             logfile_dir, user_dir, "persistent_session", "raw_logfiles"
         )
+        os.makedirs(raw_logfiles_dir, exist_ok=True)
         leftover_persistent_sessions = next(os.walk(raw_logfiles_dir))[2]
 
         for leftover_session in leftover_persistent_sessions:
