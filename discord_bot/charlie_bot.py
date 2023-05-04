@@ -12,7 +12,7 @@ class CharlieClient(discord.Client):
     def __init__(self, *args, **kwargs):
         super(CharlieClient, self).__init__(*args, **kwargs)
 
-        self.message_cooldown = timedelta(seconds=60)
+        self.message_cooldown = timedelta(seconds=10)
         self.last_message_time = datetime.now() - self.message_cooldown
 
         self.sio: socketio.AsyncClient = socketio.AsyncClient()
