@@ -26,8 +26,7 @@ class Charlie:
     ):
         print("DEBUG init charlie with session token", session_token)
         self.session_token = session_token
-        if memory_database is not None:
-            self.memory_database = memory_database
+        self.memory_database = memory_database
         self.initialized = False
         if no_init:
             return
@@ -196,13 +195,15 @@ class Charlie:
     def _handle_settings_change(
         self, settings_changed, settings_output, settings_list, input_text
     ):
+        if self.current_custom_username is None:
+            self.current_custom_username = self.name
         # either settings_changed is None or settings_changed is true
         if settings_changed is not None:
-            self.logger.log(uds.Mode.SYSTEM, self.name, input_text)
+            self.logger.log(uds.Mode.SYSTEM, self.current_custom_username, input_text)
             if settings_list is not None:
                 self.logger.log(uds.Mode.SYSTEM, "system", f"{settings_list}")
         else:
-            self.logger.log(uds.Mode.SYSTEM, self.name, input_text)
+            self.logger.log(uds.Mode.SYSTEM, self.current_custom_username, input_text)
             return True
 
         output_text = settings_output
@@ -224,7 +225,7 @@ class Charlie:
 
         return False
 
-    def _accept_text_input(self, input_text):
+    def _accept_text_input(self, input_text, custom_username: str | None = None):
         settings_changed, settings_output, settings_list = self._catch_systems_input(
             input_text
         )
@@ -236,12 +237,18 @@ class Charlie:
                 settings_list,
             )
             self.current_input_text = None
+            self.current_custom_username = self.name
             return self._handle_settings_change(
                 settings_changed, settings_output, settings_list, input_text
             )
 
-        self.logger.log(self.mode, self.name, input_text)
+        self.current_custom_username = (
+            custom_username if custom_username is not None else self.name
+        )
+        print(f"DEBUG log with custom username {self.current_custom_username}")
+        self.logger.log(self.mode, self.current_custom_username, input_text)
         self.current_input_text = input_text
+
         return None
 
     def _process_text_input(self):
@@ -267,7 +274,7 @@ class Charlie:
                 self.mode,
                 self.current_input_text,
                 self.language,
-                self.name,
+                self.current_custom_username,
                 self.translation_model,
                 self.memory_buffer,
                 self.memory_buffer_remember_count,
@@ -293,7 +300,7 @@ class Charlie:
                 self.mode,
                 self.current_input_text,
                 self.language,
-                self.name,
+                self.current_custom_username,
                 self.translation_model,
                 self.memory_buffer,
                 self.config["base"]["memory_size"],
@@ -351,10 +358,16 @@ class Charlie:
             return "Something went wrong when post processing text output"
         processed_output_text = output_text.replace("\n", " ")
         processed_output_text = re.sub(
-            f"(?<=[\w])[\W]*\s{self.name}(?=\W)", "", processed_output_text
+            f"(?<=[\w])[\W]*\s{self.current_custom_username}(?=\W)",
+            "",
+            processed_output_text,
         )
-        processed_output_text = re.sub(f"^{self.name}\W\s+", "", processed_output_text)
-        processed_output_text = re.sub(f'^{self.name}:\s+"', "", processed_output_text)
+        processed_output_text = re.sub(
+            f"^{self.current_custom_username}\W\s+", "", processed_output_text
+        )
+        processed_output_text = re.sub(
+            f'^{self.current_custom_username}:\s+"', "", processed_output_text
+        )
         # processed_output_text = re.sub(f'".*$', "", processed_output_text)
         print("DEBUG: Processed outout:", processed_output_text)
         return processed_output_text
@@ -720,6 +733,7 @@ class Charlie:
             base_config=base_config,
             socketio=socketio,
             persistent_memory_session=persistent_memory_session,
+            memory_database=self.memory_database,
         )
         self.mode = uds.Mode.CONVERSATION
         if base_config["gender"] == "male":
@@ -767,7 +781,7 @@ class Charlie:
 
         self._process_recorded_audio()
 
-    def accept_external_text_input(self, text):
+    def accept_external_text_input(self, text, custom_username: str | None = None):
         if not self.initialized:
             # TODO: Give this info back to the client
             print("Charlie is not yet initiliazed when accepting external text input")
@@ -779,7 +793,7 @@ class Charlie:
                 "Attempted to accept external text while dormant..",
             )
             return
-        return self._accept_text_input(text)
+        return self._accept_text_input(text, custom_username)
 
     def process_external_text_input(self):
         if not self.initialized:

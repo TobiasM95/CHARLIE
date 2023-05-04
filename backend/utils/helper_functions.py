@@ -5,7 +5,7 @@ import os
 import io
 import requests
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 import wave
 
@@ -435,7 +435,12 @@ class Logger:
     def __init__(
         self, session_token, userUID, socketio=None, persistent_memory_session=False
     ):
+        self.split_log_message_threshold = 30
+        self.split_log_timedelta = timedelta(seconds=600)
+        self.last_log_split_timestamp = datetime.now()
+
         self.session_token = session_token
+        self.persistent_memory_session = persistent_memory_session
         self.stats_dir = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "..", "stats"
         )
@@ -471,7 +476,7 @@ class Logger:
                 else self.npm_logfile_dir,
                 f"session_{timestamp}.txt".replace(":", "-"),
             )
-            self.last_log_message = f"[{timestamp}][SYSTEM, system] Start session on {weekday} at {timestamp}, session token {self.session_token}, persistency={persistent_memory_session}."
+            self.last_log_message = f"[{timestamp}][SYSTEM, system] Start session on {weekday} at {timestamp}, session token {self.session_token}, persistency={self.persistent_memory_session}."
             print(self.last_log_message)
             with open(self.filename, "w") as logfile:
                 logfile.write(self.last_log_message + "\n")
@@ -511,6 +516,13 @@ class Logger:
         }
 
     def log(self, mode, name, text, verbose=True):
+        if (
+            self.persistent_memory_session
+            and (datetime.now() - self.last_log_split_timestamp)
+            > self.split_log_timedelta
+        ):
+            self.last_log_split_timestamp = datetime.now()
+            self.split_log()
         timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
         self.last_log_message = f"[{timestamp}][{mode}, {name}] {text}"
         if verbose:
@@ -533,6 +545,46 @@ class Logger:
         with open(self.filename, "r") as logfile:
             for line in logfile:
                 print(line)
+
+    def split_log(self):
+        if not os.path.isfile(self.filename):
+            return
+        timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+        weekday = datetime.now().strftime("%A")
+        dir_path, filename_w_ext = os.path.split(os.path.abspath(self.filename))
+        filename_wo_ext = filename_w_ext[:-4]
+        with open(self.filename, "r") as logfile:
+            lines = logfile.readlines()
+        if (
+            len(lines) == 0
+            or len([l for l in lines if "SYSTEM, " not in l])
+            < self.split_log_message_threshold
+        ):
+            return
+        first_line = lines[0]
+
+        session_start_timestamp_match = re.match("\[(.*?)\]", first_line)
+        if session_start_timestamp_match is None:
+            first_line = f"[{timestamp}][SYSTEM, system] Start session on {weekday} at {timestamp}, session token {self.session_token}, persistency={self.persistent_memory_session}."
+            session_start = timestamp
+        else:
+            session_start = session_start_timestamp_match.group(1)
+        session_start_formatted = session_start.replace(":", "-")
+        split_count = len(
+            [
+                n
+                for n in next(os.walk(dir_path))[2]
+                if session_start_formatted + "_split" in n
+            ]
+        )
+        os.rename(
+            os.path.abspath(self.filename),
+            os.path.join(dir_path, filename_wo_ext + f"_split_{split_count}.txt"),
+        )
+
+        with open(self.filename, "w") as newfile:
+            newfile.write(first_line)
+            newfile.write(f"[{timestamp}][SYSTEM, system] Continued session logfile.\n")
 
     def track_stats(self, api, message="", duration=0.0, tokens=0):
         self.stats = self._load_stats()

@@ -289,9 +289,11 @@ def _handle_async_update_config(session_token: str, new_config: dict) -> None:
 
 
 @socketio.on("sendmessage")
-def handle_message(session_token: str, message: str) -> None:
+def handle_message(
+    session_token: str, message: str, custom_username: str | None = None
+) -> None:
     global charlie_sessions
-    print("sendmessage", message)
+    print("sendmessage", message, "with custom username", custom_username)
     if not _get_responsiveness(session_token):
         print("Send message not responsive yet")
         socketio.emit(
@@ -310,7 +312,7 @@ def handle_message(session_token: str, message: str) -> None:
     charlie_sessions[session_token].last_update = datetime.datetime.today()
     text_accept_result = charlie_sessions[
         session_token
-    ].charlie_instance.accept_external_text_input(message)
+    ].charlie_instance.accept_external_text_input(message, custom_username)
     print("DEBUG text_accept_result", text_accept_result)
     if text_accept_result is None:
         socketio.start_background_task(_handle_async_post_text, session_token)

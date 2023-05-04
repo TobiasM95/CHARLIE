@@ -128,7 +128,10 @@ def get_conversation_prompt_chat_gpt(
 
     message_query += (
         _localize_logged(
-            language, translation_model, "Respond to the last message/input:", logger
+            language,
+            translation_model,
+            "Respond to the last message/input once with only the four options A,B,C,D:",
+            logger,
         )
         + "\n"
     )
