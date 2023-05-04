@@ -484,9 +484,9 @@ class Logger:
                 {"session_token": self.session_token, "message": self.last_log_message},
             )
 
-        self.stats = self._init_stats()
+        self.stats = self._load_stats()
 
-    def _init_stats(self):
+    def _load_stats(self):
         today_date = datetime.now()
         self.stats_file_path = os.path.join(
             self.stats_dir, f"stats_{today_date.year}-{today_date.month}.json"
@@ -535,6 +535,7 @@ class Logger:
                 print(line)
 
     def track_stats(self, api, message="", duration=0.0, tokens=0):
+        self.stats = self._load_stats()
         if api == "whisper":
             self.stats["whisper_minutes"] += duration / 60.0
             self.stats["whisper_cost"] = self.stats["whisper_minutes"] * 0.006
