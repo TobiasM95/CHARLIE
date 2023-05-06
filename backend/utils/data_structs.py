@@ -40,11 +40,13 @@ class Gender:
 class MessagePair:
     def __init__(
         self,
+        name_user,
         msg_user=None,
         msg_charlie_dict=None,
         reply_style=None,
         reply_length=None,
     ):
+        self.name_user = name_user
         self.msg_user = msg_user
         self.msg_charlie = None
         self.msg_charlie_raw = None

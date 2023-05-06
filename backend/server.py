@@ -525,7 +525,7 @@ def _read_protocol_from_frontend_settings() -> bool:
 
 def _memorization_cleanup(quit_event):
     memorization_logger = uhf.Logger(None, None, None, True)
-    update_after = 900
+    update_after = 60
     update_timer = update_after
     check_every = 5
     while True:

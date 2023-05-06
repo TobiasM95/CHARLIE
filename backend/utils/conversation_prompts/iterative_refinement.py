@@ -65,6 +65,12 @@ def get_conversation_prompt_chat_gpt(
     for i in range(remembered_message_count):
         relevant_message_pairs.append(memory_buffer[-1 - i])
 
+    involved_users: set[str] = set()
+    involved_users.add(name)
+    for message_pair in relevant_message_pairs:
+        involved_users.add(message_pair[language].name_user)
+    group_conversation: bool = len(involved_users) > 1
+
     print(
         "DEBUG",
         relevant_message_pairs,
@@ -74,12 +80,15 @@ def get_conversation_prompt_chat_gpt(
         memory_buffer,
         remembered_message_count,
         additional_parameters,
+        f"group conversation={group_conversation}",
     )
 
     mood_style, _ = mood.get_style(translation_model, language)
 
     prompt = copy.deepcopy(
-        _get_base_prompt(language, translation_model, logger, name, mood_style)
+        _get_base_prompt(
+            language, translation_model, logger, name, mood_style, group_conversation
+        )
     )
     print("DEBUG base prompt:", prompt)
 
@@ -93,7 +102,8 @@ def get_conversation_prompt_chat_gpt(
             name,
             text,
             language,
-            context_length=1,
+            context_length=2,
+            memories_per_context=1,
         )
         print("DEBUG retrieved memories:", additional_parameters["memory-excerpt"])
 
@@ -114,7 +124,7 @@ def get_conversation_prompt_chat_gpt(
         reversed_relevant_message_pairs = list(reversed(relevant_message_pairs))
         for message_pair in reversed_relevant_message_pairs[:-1]:
             message_query += (
-                f"{name}: {message_pair[language].msg_user}"
+                f"{message_pair[language].name_user}: {message_pair[language].msg_user}"
                 + "\n"
                 + f"Charlie: {message_pair[language].msg_charlie}"
                 + "\n"
@@ -126,19 +136,30 @@ def get_conversation_prompt_chat_gpt(
             + '"\n'
         )
 
-    message_query += (
-        _localize_logged(
-            language,
-            translation_model,
-            "Respond to the last message/input once with only the four options A,B,C,D:",
-            logger,
-        )
-        + "\n"
-    )
     if text.startswith("("):
-        message_query += f'"{text}"'
+        message_query += (
+            _localize_logged(
+                language,
+                translation_model,
+                f"You want to give your own input to the conversation according to the following instruction:",
+                logger,
+            )
+            + "\n"
+        )
+        message_query += f'"{text}"\n'
+        message_query += f"Now, take date, situation, memories, excerpt and your instruction and give reply options A,B,C,D according to the instruction:"
     else:
-        message_query += f'"{name}: {text}"'
+        message_query += (
+            _localize_logged(
+                language,
+                translation_model,
+                f"The last message was by {name}:",
+                logger,
+            )
+            + "\n"
+        )
+        message_query += f'"{name}: {text}"\n'
+        message_query += f"Now, take date, situation, memories, excerpt and last message and give reply options A,B,C,D to {name}'s message:"
     print("DEBUG message_query", message_query)
 
     prompt = [
@@ -146,21 +167,40 @@ def get_conversation_prompt_chat_gpt(
     ]
 
     print("DEBUG", prompt, mood_style)
+    logger.debug_log(str(prompt))
     return prompt, mood_style, None
 
 
-def _get_base_prompt(language, translation_model, logger, name, mood_style):
-    prompt = [
-        {
-            "role": "user",
-            "content": _localize_logged(
-                language,
-                translation_model,
-                f'From now on you pretend to be Charlie having a conversation with {name}. The user inputs will either be messages by {name}, after which you will reply as Charlie or instructions for special messages by Charlie.\nAll your answers will be given in 4 independent parts, separated by an "<or>" separator. You will give a neutral response and then gradually transform the response to the style "{mood_style}" but each message is independent. The message "A. ..." will be neutral, "B. ..." incorporates the style a little bit, "C. ..." is as far as you can go within your guidelines, and "D. ..." is 100% "{mood_style}". Don\'t give an introduction and don\'t continue the conversation. Always answer with exactly 4 messages in this format and don\'t miss the "<or>" separators in between:\n"A. ...\n<or>\nB. ...\n<or>\nC. ...\n<or>\nD. ..."\nlike described earlier.',
-                logger,
-            ),
-        }
-    ]
+def _get_base_prompt(
+    language, translation_model, logger, name, mood_style, group_conversation
+):
+    if group_conversation:
+        prompt = [
+            {
+                "role": "user",
+                "content": _localize_logged(
+                    language,
+                    translation_model,
+                    f'From now on you pretend to be Charlie having a group conversation. The user inputs will either be messages including the username, after which you will reply as Charlie or instructions for special messages by Charlie.\nAll your answers will be given in 4 independent parts, separated by an "<or>" separator. You will give a neutral response and then gradually transform the response to the style "{mood_style}" but each message is independent. The message "A. ..." will be neutral, "B. ..." incorporates the style a little bit, "C. ..." is as far as you can go within your guidelines, and "D. ..." is 100% "{mood_style}". Don\'t give an introduction and don\'t continue the conversation. Always answer with exactly 4 messages in this format and don\'t miss the "<or>" separators in between:\n"A. ...\n<or>\nB. ...\n<or>\nC. ...\n<or>\nD. ..."\nlike described earlier.',
+                    logger,
+                ),
+            }
+        ]
+    else:
+        extension = ""
+        if name is not None:
+            extension = f" with {name}"
+        prompt = [
+            {
+                "role": "user",
+                "content": _localize_logged(
+                    language,
+                    translation_model,
+                    f'From now on you pretend to be Charlie having a conversation{extension}. The user inputs will either be messages by {name}, after which you will reply as Charlie or instructions for special messages by Charlie.\nAll your answers will be given in 4 independent parts, separated by an "<or>" separator. You will give a neutral response and then gradually transform the response to the style "{mood_style}" but each message is independent. The message "A. ..." will be neutral, "B. ..." incorporates the style a little bit, "C. ..." is as far as you can go within your guidelines, and "D. ..." is 100% "{mood_style}". Don\'t give an introduction and don\'t continue the conversation. Always answer with exactly 4 messages in this format and don\'t miss the "<or>" separators in between:\n"A. ...\n<or>\nB. ...\n<or>\nC. ...\n<or>\nD. ..."\nlike described earlier.',
+                    logger,
+                ),
+            }
+        ]
 
     return prompt
 
@@ -186,7 +226,10 @@ def _enrich_base_prompt(
             + additional_parameters["situation-description"]
             + '"'
         )
-        if "memory-excerpt" in additional_parameters:
+        if (
+            "memory-excerpt" in additional_parameters
+            and len(additional_parameters["memory-excerpt"]) > 0
+        ):
             enriched_content += "\n"
     if (
         "memory-excerpt" in additional_parameters
@@ -237,7 +280,9 @@ def extract_prompt_answers(full_answer: str):
     if answer[0] == '"' or answer[0] == "'":
         answer = answer.strip('"').strip("'")
     answer_dict = {}
-    answer_dict["none"] = answer
+    answer_dict["none"] = re.sub(
+        "[^\u0000-\uD7FF\uE000-\uFFFF]", "", answer, flags=re.UNICODE
+    )
     answer_dict["raw"] = None
     answer_dict["clean"] = None
     answer_dict["style"] = None
@@ -262,7 +307,10 @@ def _get_memory_from_database(
     text: str,
     language: Language,
     context_length: int = 1,
+    memories_per_context: int = 1,
 ) -> list:
+    if len(memory_database.memory_summary_db) < 1:
+        return []
     date = datetime.now().strftime("%Y-%m-%d")
     weekday = datetime.now().strftime("%A")
 
@@ -284,11 +332,13 @@ def _get_memory_from_database(
     with multiprocessing.Pool(context_length) as pool:
         embeddings = pool.map(get_text_embedding, context_list)
 
+    print(f"DEBUG: Num memory embeddings:", len(embeddings))
+
     memories = []
     for embedding in embeddings:
-        memories += memory_database.retrieve_memory(embedding, 1)
+        memories += memory_database.retrieve_memory(embedding, memories_per_context)
 
-    return memories[::-1]
+    return list(dict.fromkeys(memories[::-1]))
 
 
 def _localize_logged(

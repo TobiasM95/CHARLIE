@@ -288,6 +288,7 @@ class Charlie:
             self.memory_buffer.append(
                 {
                     self.language: uds.MessagePair(
+                        self.current_custom_username,
                         self.current_input_text,
                         output_text_dict,
                         reply_style,
@@ -493,7 +494,10 @@ class Charlie:
                         source_language = list(self.memory_buffer[-i].keys())[0]
 
                         # translate message
-                        translated_message_pair = uds.MessagePair()
+                        translated_message_pair: uds.MessagePair = uds.MessagePair()
+                        translated_message_pair.name_user = self.memory_buffer[-i][
+                            source_language
+                        ].name_user
                         if self.memory_buffer[-i][source_language].msg_user is not None:
                             translated_message_pair.msg_user = uhf.translate_transcript(
                                 self.translation_model,

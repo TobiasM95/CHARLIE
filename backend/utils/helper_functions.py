@@ -372,7 +372,12 @@ class AudioProcessor:
 
 
 class MemoryDatabase:
-    def __init__(self, memory_vector_db_path: str, memory_summary_db_path: str):
+    def __init__(
+        self,
+        memory_vector_db_path: str,
+        memory_summary_db_path: str,
+        learning_phase: int = 5,
+    ):
         self.memory_vector_db_path = memory_vector_db_path
         self.memory_summary_db_path = memory_summary_db_path
         if os.path.isfile(memory_vector_db_path):
@@ -386,6 +391,9 @@ class MemoryDatabase:
         else:
             self.memory_summary_db = []
 
+        # How many memories have to exist before retrieving returns some of them
+        self.learning_phase: int = learning_phase
+
     def insert_memory(self, embedding: list[float], summary: str) -> bool:
         if any(np.equal(self.memory_vector_db, embedding).all(1)):
             return False
@@ -396,7 +404,7 @@ class MemoryDatabase:
         return True
 
     def retrieve_memory(self, embedding: list[float], num_memories: int):
-        if self.memory_vector_db.shape[0] == 0:
+        if self.memory_vector_db.shape[0] < self.learning_phase:
             return []
         if num_memories > self.memory_vector_db.shape[0]:
             num_memories = self.memory_vector_db.shape[0]
@@ -435,10 +443,11 @@ class Logger:
     def __init__(
         self, session_token, userUID, socketio=None, persistent_memory_session=False
     ):
-        self.split_log_message_threshold = 30
-        self.split_log_timedelta = timedelta(seconds=600)
+        self.split_log_message_threshold = 10
+        self.split_log_timedelta = timedelta(seconds=60)
         self.last_log_split_timestamp = datetime.now()
 
+        self.userUID = userUID
         self.session_token = session_token
         self.persistent_memory_session = persistent_memory_session
         self.stats_dir = os.path.join(
@@ -515,6 +524,31 @@ class Logger:
             "elevenlabs_tts_percentage_used": 0,
         }
 
+    def debug_log(self, log_message, suffix=""):
+        uid: str = self.userUID if self.userUID is not None else ""
+        if suffix != "":
+            suffix = "_" + suffix
+        os.makedirs(
+            os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                "..",
+                "logfiles",
+                uid,
+            ),
+            exist_ok=True,
+        )
+        with open(
+            os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                "..",
+                "logfiles",
+                uid,
+                f"debug_log{suffix}.txt",
+            ),
+            "+a",
+        ) as debug_logfile:
+            debug_logfile.write(log_message + "\n")
+
     def log(self, mode, name, text, verbose=True):
         if (
             self.persistent_memory_session
@@ -565,10 +599,11 @@ class Logger:
 
         session_start_timestamp_match = re.match("\[(.*?)\]", first_line)
         if session_start_timestamp_match is None:
-            first_line = f"[{timestamp}][SYSTEM, system] Start session on {weekday} at {timestamp}, session token {self.session_token}, persistency={self.persistent_memory_session}."
+            first_line = f"[{timestamp}][SYSTEM, system] Start session on {weekday} at {timestamp}, session token INVALIDATEDSESSIONTOKEN, persistency={self.persistent_memory_session}."
             session_start = timestamp
         else:
             session_start = session_start_timestamp_match.group(1)
+            first_line = f"[{session_start}][SYSTEM, system] Start session on {weekday} at {timestamp}, session token INVALIDATEDSESSIONTOKEN, persistency={self.persistent_memory_session}."
         session_start_formatted = session_start.replace(":", "-")
         split_count = len(
             [
@@ -585,6 +620,14 @@ class Logger:
         with open(self.filename, "w") as newfile:
             newfile.write(first_line)
             newfile.write(f"[{timestamp}][SYSTEM, system] Continued session logfile.\n")
+
+        print(
+            f"DEBUG split log at {os.path.join(dir_path, filename_wo_ext + f'_split_{split_count}.txt')}"
+        )
+        self.debug_log(
+            f"DEBUG split log at {os.path.join(dir_path, filename_wo_ext + f'_split_{split_count}.txt')}",
+            "memorization",
+        )
 
     def track_stats(self, api, message="", duration=0.0, tokens=0):
         self.stats = self._load_stats()
@@ -1113,6 +1156,10 @@ def suppress_stdout():
 
 
 def memorize_conversations(active_logfiles: list[str], logger: Logger):
+    logger.debug_log(
+        f"THREAD DEBUG attempt memorization while active convos exist: {active_logfiles}",
+        "memorization",
+    )
     SUMMARIZATION_CHUNK_MAX_CHARACTER_COUNT = 12000
     sessions_to_memorize = {}
 
@@ -1123,6 +1170,9 @@ def memorize_conversations(active_logfiles: list[str], logger: Logger):
     os.makedirs(logfile_dir, exist_ok=True)
     user_dirs = next(os.walk(logfile_dir))[1]
     for user_dir in user_dirs:
+        logger.debug_log(
+            f"THREAD DEBUG check {user_dir} for logfiles..", "memorization"
+        )
         raw_logfiles_dir = os.path.join(
             logfile_dir, user_dir, "persistent_session", "raw_logfiles"
         )
@@ -1130,12 +1180,23 @@ def memorize_conversations(active_logfiles: list[str], logger: Logger):
         leftover_persistent_sessions = next(os.walk(raw_logfiles_dir))[2]
 
         for leftover_session in leftover_persistent_sessions:
+            logger.debug_log(
+                f"THREAD DEBUG check if {leftover_session} can be memorized..",
+                "memorization",
+            )
             file_path = os.path.join(raw_logfiles_dir, leftover_session)
             if file_path not in active_logfiles:
+                logger.debug_log(
+                    f"THREAD DEBUG path {file_path} IS READY +++", "memorization"
+                )
                 if user_dir not in sessions_to_memorize:
                     sessions_to_memorize[user_dir] = [leftover_session]
                 else:
                     sessions_to_memorize[user_dir] += [leftover_session]
+            else:
+                logger.debug_log(
+                    f"THREAD DEBUG path {file_path} IS NOT READY ---", "memorization"
+                )
 
     # for each session to memorize
     for uuid, session_filenames in sessions_to_memorize.items():
