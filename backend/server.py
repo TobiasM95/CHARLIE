@@ -558,7 +558,7 @@ if __name__ == "__main__":
     memorization_cleanup_thread = Thread(
         target=_memorization_cleanup, args=(mcp_quit_event,)
     )
-    if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+    if not app.debug or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
         memorization_cleanup_thread.start()
 
     uses_https: bool = _read_protocol_from_frontend_settings()
@@ -576,7 +576,7 @@ if __name__ == "__main__":
             socketio.run(app, debug=debug, port=5000, host=sys.argv[1])
     finally:
         mcp_quit_event.set()
-        if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+        if not app.debug or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
             print("Please wait for the background threads to finish")
 
     if memorization_cleanup_thread.is_alive():
