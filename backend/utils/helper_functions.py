@@ -548,6 +548,7 @@ class Logger:
             "+a",
         ) as debug_logfile:
             debug_logfile.write(log_message + "\n")
+        print(f"DEBUG LOG: {log_message}")
 
     def log(self, mode, name, text, verbose=True):
         if (
@@ -928,6 +929,7 @@ def prompt_gpt(
                 "general exception answer style",
             )
         logger.track_stats(api="chatgpt", tokens=result["usage"]["total_tokens"])
+        logger.debug_log(result["choices"][0]["message"]["content"])
         return (
             extract_prompt_answers(result["choices"][0]["message"]["content"]),
             reply_style,
