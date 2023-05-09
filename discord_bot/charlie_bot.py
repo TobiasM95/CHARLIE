@@ -89,6 +89,9 @@ class CharlieBackendSession:
             if self.target_user in conv_message or "SYSTEM" in conv_message:
                 return
 
+            if "wow you're talking so fast" in conv_message.lower():
+                self.message_cooldown *= 1.5
+
             conv_message_content_match = re.search("\[.*?\]\[.*?\](.*)", conv_message)
             if conv_message_content_match is not None:
                 await self.target_channel.send(conv_message_content_match.group(1))
