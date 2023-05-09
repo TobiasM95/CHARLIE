@@ -22,6 +22,7 @@ class CharlieBackendSession:
 
         self.sio: socketio.AsyncClient = socketio.AsyncClient()
         self.callbacks()
+        self.initialized = False
 
         self.is_responsive = True
 
@@ -36,25 +37,27 @@ class CharlieBackendSession:
         @self.sio.event
         async def connect():
             print("Socketio connected!")
-            await self.sio.emit(
-                "initcharlie",
-                (
-                    self.uid,
-                    self.uid + "sessionKeyLocal",
-                    True,
-                    {
-                        "userUID": self.uid,
-                        "name": "John",
-                        "gender": "female",
-                        "gender-user": "male",
-                        "language": "EN-US",
-                        "memory_size": 3,
-                        "style_en": "polite girl that is pleasant to talk to",
-                        "situation_en": "chatting in a discord server with a few friends",
-                        "tts-method": "notts",
-                    },
-                ),
-            )
+            if not self.initialized:
+                await self.sio.emit(
+                    "initcharlie",
+                    (
+                        self.uid,
+                        self.uid + "sessionKeyLocal",
+                        True,
+                        {
+                            "userUID": self.uid,
+                            "name": "John",
+                            "gender": "female",
+                            "gender-user": "male",
+                            "language": "EN-US",
+                            "memory_size": 3,
+                            "style_en": "nice girl that is pleasant to talk to",
+                            "situation_en": "chatting in a discord server with a few friends",
+                            "tts-method": "notts",
+                        },
+                    ),
+                )
+                self.initialized = True
 
         @self.sio.event
         async def disconnect():
