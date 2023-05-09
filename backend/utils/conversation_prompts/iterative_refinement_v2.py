@@ -2,7 +2,7 @@ import re
 from functools import cache
 import copy
 from datetime import datetime
-import threading
+import concurrent.futures
 
 from ..data_structs import Language
 
@@ -360,8 +360,8 @@ def _get_memory_from_database(
 
     from ..helper_functions import get_text_embedding
 
-    with threading.Pool(context_length) as pool:
-        embeddings = pool.map(get_text_embedding, context_list)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=context_length) as executor:
+        embeddings = list(executor.map(get_text_embedding, context_list))
 
     print(f"DEBUG: Num memory embeddings:", len(embeddings))
 
