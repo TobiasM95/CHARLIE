@@ -910,14 +910,26 @@ def prompt_gpt(
             if "exceeded your current quota" in err_msg:
                 ret_msg = "I think our time together came to an end. I have to say goodbye now."
                 return (
-                    {"raw": ret_msg, "clean": ret_msg, "style": ret_msg},
+                    {
+                        "none": ret_msg,
+                        "raw": ret_msg,
+                        "clean": ret_msg,
+                        "style": ret_msg,
+                    },
                     "rate quota exception answer style",
+                    "rate quota exception reply length",
                 )
             else:
                 ret_msg = "Wow you're talking so fast, let me think about that for a moment..."
                 return (
-                    {"raw": ret_msg, "clean": ret_msg, "style": ret_msg},
+                    {
+                        "none": ret_msg,
+                        "raw": ret_msg,
+                        "clean": ret_msg,
+                        "style": ret_msg,
+                    },
                     "rate exception answer style",
+                    "rate exception reply length",
                 )
         except Exception as e:
             err_msg = str(e)
@@ -925,8 +937,9 @@ def prompt_gpt(
                 "I think something went terribly wrong here. We need an adult in here."
             )
             return (
-                {"raw": ret_msg, "clean": ret_msg, "style": ret_msg},
+                {"none": ret_msg, "raw": ret_msg, "clean": ret_msg, "style": ret_msg},
                 "general exception answer style",
+                "general exception reply length",
             )
         logger.track_stats(api="chatgpt", tokens=result["usage"]["total_tokens"])
         logger.debug_log(result["choices"][0]["message"]["content"])
