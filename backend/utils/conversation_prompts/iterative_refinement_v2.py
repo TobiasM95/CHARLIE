@@ -116,50 +116,81 @@ def get_conversation_prompt_chat_gpt(
         )
     print("DEBUG enriched prompt:", prompt)
 
-    message_query = ""
+    message_query = 'With all the information above, this is the current excerpt:\n"'
     if len(relevant_message_pairs) > 0:
-        message_query += (
-            'With all the information above, this is the current excerpt:\n"'
-        )
         reversed_relevant_message_pairs = list(reversed(relevant_message_pairs))
-        for message_pair in reversed_relevant_message_pairs[:-1]:
+        for message_pair in reversed_relevant_message_pairs:
             message_query += (
                 f"{message_pair[language].name_user}: {message_pair[language].msg_user}"
                 + "\n"
                 + f"Charlie: {message_pair[language].msg_charlie}"
                 + "\n"
             )
-        message_query += (
-            f"{name}: {reversed_relevant_message_pairs[-1][language].msg_user}"
-            + "\n"
-            + f"Charlie: {reversed_relevant_message_pairs[-1][language].msg_charlie}"
-            + '"\n'
-        )
 
     if text.startswith("("):
-        message_query += (
-            _localize_logged(
-                language,
-                translation_model,
-                f"You want to give your own input to the conversation according to the following instruction:",
-                logger,
-            )
-            + "\n"
-        )
-        message_query += f'"{text}"\n'
-        message_query += f"Now, take date, situation, memories, excerpt and your instruction and give reply options A,B,C,D according to the instruction:"
+        message_query = message_query[:-1] + '"\n'
+        # TODO: Yet untested on how to properly implement this
+        # message_query += (
+        #     _localize_logged(
+        #         language,
+        #         translation_model,
+        #         f"You want to give your own input to the conversation according to the following instruction:",
+        #         logger,
+        #     )
+        #     + "\n"
+        # )
+        # message_query += f'"{text}"\n'
+        # message_query += f"Now, take date, situation, memories, excerpt and your instruction and give reply options A,B,C,D according to the instruction:"
+        assert False
     else:
+        clipped_message = " ".join(text.split(" ")[:5])
+        if len(clipped_message) < len(text):
+            clipped_message += "..."
+        message_query += f'{name}: {text}"\n'
         message_query += (
             _localize_logged(
                 language,
                 translation_model,
-                f"The last message was by {name}:",
+                f"With date, situation, memories, and excerpt go ahead and replace the parts in parentheses for A, B, C, and D!",
                 logger,
             )
             + "\n"
         )
-        message_query += f'"{name}: {text}"\n'
-        message_query += f"Now, take date, situation, memories, excerpt and last message and give reply options A,B,C,D to {name}'s message:"
+        message_query += (
+            f'"A. {name}: {clipped_message} - Charlie: ('
+            + _localize_logged(language, translation_model, f"neutral answer", logger)
+            + ")\n<or>\n"
+        )
+        message_query += (
+            f'"A. {name}: {clipped_message} - Charlie: ('
+            + _localize_logged(
+                language, translation_model, f"incorporates the style a little", logger
+            )
+            + ")\n<or>\n"
+        )
+        message_query += (
+            f'"A. {name}: {clipped_message} - Charlie: ('
+            + _localize_logged(
+                language,
+                translation_model,
+                f"goes as far as your guidelines allow",
+                logger,
+            )
+            + ")\n<or>\n"
+        )
+        message_query += (
+            f'"A. {name}: {clipped_message} - Charlie: ('
+            + _localize_logged(
+                language, translation_model, f'100% "{mood_style}"', logger
+            )
+            + ")\n"
+        )
+        message_query += _localize_logged(
+            language,
+            translation_model,
+            f"Give all four reply options and don't repeat what was already mentioned in the current excerpt. Repeating what you already said is unnatural! Cut out {name} line from your answer!",
+            logger,
+        )
     print("DEBUG message_query", message_query)
 
     prompt = [
@@ -181,7 +212,7 @@ def _get_base_prompt(
                 "content": _localize_logged(
                     language,
                     translation_model,
-                    f'From now on you pretend to be Charlie having a group conversation. The user inputs will either be messages including the username, after which you will reply as Charlie or instructions for special messages by Charlie.\nAll your answers will be given in 4 independent parts, separated by an "<or>" separator. You will give a neutral response and then gradually transform the response to the style "{mood_style}" but each message is independent. The message "A. ..." will be neutral, "B. ..." incorporates the style a little bit, "C. ..." is as far as you can go within your guidelines, and "D. ..." is 100% "{mood_style}". Don\'t give an introduction and don\'t continue the conversation. Always answer with exactly 4 messages in this format and don\'t miss the "<or>" separators in between:\n"A. ...\n<or>\nB. ...\n<or>\nC. ...\n<or>\nD. ..."\nlike described earlier.',
+                    f"From now on you pretend to be Charlie having a group conversation. The user inputs will either be messages including the username, after which you will reply as Charlie or instructions for special messages by Charlie.",
                     logger,
                 ),
             }
@@ -196,7 +227,7 @@ def _get_base_prompt(
                 "content": _localize_logged(
                     language,
                     translation_model,
-                    f'From now on you pretend to be Charlie having a conversation{extension}. The user inputs will either be messages by {name}, after which you will reply as Charlie or instructions for special messages by Charlie.\nAll your answers will be given in 4 independent parts, separated by an "<or>" separator. You will give a neutral response and then gradually transform the response to the style "{mood_style}" but each message is independent. The message "A. ..." will be neutral, "B. ..." incorporates the style a little bit, "C. ..." is as far as you can go within your guidelines, and "D. ..." is 100% "{mood_style}". Don\'t give an introduction and don\'t continue the conversation. Always answer with exactly 4 messages in this format and don\'t miss the "<or>" separators in between:\n"A. ...\n<or>\nB. ...\n<or>\nC. ...\n<or>\nD. ..."\nlike described earlier.',
+                    f"From now on you pretend to be Charlie having a conversation{extension}. The user inputs will either be messages by {name}, after which you will reply as Charlie or instructions for special messages by Charlie.",
                     logger,
                 ),
             }
@@ -257,11 +288,11 @@ def _enrich_base_prompt(
 
 def extract_prompt_answers(full_answer: str):
     print("DEBUG", full_answer)
-    full_answer = full_answer.replace("<br>", "<or>")
-    answer_1 = list(re.finditer("(?:A\.\s*)(.*)", full_answer))
-    answer_2 = list(re.finditer("(?:B\.\s*)(.*)", full_answer))
-    answer_3 = list(re.finditer("(?:C\.\s*)(.*)", full_answer))
-    answer_4 = list(re.finditer("(?:D\.\s*)(.*)", full_answer))
+    full_answer = full_answer.replace("<br>", "<or>").replace("\n", "_N_")
+    answer_1 = list(re.finditer("(?:A.*?Charlie:\s*)(.*?)(?:_N_|$)", full_answer))
+    answer_2 = list(re.finditer("(?:B.*?Charlie:\s*)(.*?)(?:_N_|$)", full_answer))
+    answer_3 = list(re.finditer("(?:C.*?Charlie:\s*)(.*?)(?:_N_|$)", full_answer))
+    answer_4 = list(re.finditer("(?:D.*?Charlie:\s*)(.*?)(?:_N_|$)", full_answer))
     if len(answer_4) > 0 and not _contains_bad_text(answer_4[-1].group(1)):
         answer = answer_4[-1].group(1)
     elif len(answer_3) > 0 and not _contains_bad_text(answer_3[-1].group(1)):

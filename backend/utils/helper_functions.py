@@ -18,7 +18,7 @@ from thefuzz import fuzz
 
 from .data_structs import Language, Mode, Gender, gpt_models
 
-from .conversation_prompts.iterative_refinement import (
+from .conversation_prompts.iterative_refinement_v2 import (
     get_conversation_prompt_chat_gpt,
     extract_prompt_answers,
     chat_gpt_parameter_dict,
