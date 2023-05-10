@@ -317,7 +317,7 @@ def handle_message(
     if text_accept_result is None:
         socketio.start_background_task(_handle_async_post_text, session_token)
     else:
-        _set_responsiveness(True)
+        _set_responsiveness(session_token, True)
         socketio.emit(
             "responsiveness",
             {"session_token": session_token, "isResponsive": True},

@@ -229,7 +229,9 @@ class Charlie:
         settings_changed, settings_output, settings_list = self._catch_systems_input(
             input_text
         )
-        if settings_changed is None or settings_changed:
+        # TODO: Reenable settings changed or maybe completely decommission that part
+        # if settings_changed is None or settings_changed:
+        if False:
             print(
                 "DEBUG: systems input caught",
                 settings_changed,
