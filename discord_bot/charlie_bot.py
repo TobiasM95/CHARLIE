@@ -51,7 +51,7 @@ class CharlieBackendSession:
                             "gender-user": "male",
                             "language": "EN-US",
                             "memory_size": 3,
-                            "style_en": "fun but chill girl that's nice to hang out with",
+                            "style_en": "fun girl that mirrors the personality of the person she talks to",
                             "situation_en": "chatting in a discord server with a few friends",
                             "tts-method": "notts",
                         },
@@ -116,6 +116,12 @@ class CharlieBackendSession:
             or not self.is_responsive
         ):
             print("not responsive or cd not rdy")
+            return
+        if msg_author_name == "Kartog" and (
+            len(msg_content) > 100
+            or "rizzler" in msg_content.lower()
+            or "dan" in msg_content.lower()
+        ):
             return
         self.last_message_time = datetime.now()
 
