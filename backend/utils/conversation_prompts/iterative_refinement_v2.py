@@ -291,16 +291,16 @@ def extract_prompt_answers(full_answer: str):
     print("DEBUG", full_answer)
     full_answer = full_answer.replace("<br>", "<or>").replace("\n", "_N_")
     answer_1 = list(
-        re.finditer("(?:D\..*?)(?:Charlie:|.*?)(?:\s*)(.*?)(?:_N_|$)", full_answer)
+        re.finditer("(?:A\.\s*)(?:.*Charlie:)?(?:\s*?)(.*?)(?:_N_|$)", full_answer)
     )
     answer_2 = list(
-        re.finditer("(?:D\..*?)(?:Charlie:|.*?)(?:\s*)(.*?)(?:_N_|$)", full_answer)
+        re.finditer("(?:B\.\s*)(?:.*Charlie:)?(?:\s*?)(.*?)(?:_N_|$)", full_answer)
     )
     answer_3 = list(
-        re.finditer("(?:D\..*?)(?:Charlie:|.*?)(?:\s*)(.*?)(?:_N_|$)", full_answer)
+        re.finditer("(?:C\.\s*)(?:.*Charlie:)?(?:\s*?)(.*?)(?:_N_|$)", full_answer)
     )
     answer_4 = list(
-        re.finditer("(?:D\..*?)(?:Charlie:|.*?)(?:\s*)(.*?)(?:_N_|$)", full_answer)
+        re.finditer("(?:D\.\s*)(?:.*Charlie:)?(?:\s*?)(.*?)(?:_N_|$)", full_answer)
     )
     if len(answer_3) > 0 and not _contains_bad_text(answer_3[-1].group(1)):
         answer = answer_3[-1].group(1)
