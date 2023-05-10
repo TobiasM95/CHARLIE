@@ -307,7 +307,7 @@ def extract_prompt_answers(full_answer: str):
         answer = answer_1[-1].group(1)
     else:
         answer = full_answer
-    answer = answer.strip()
+    answer = re.sub("\(.*?\)", "", answer).strip()
     if answer[0] == '"' or answer[0] == "'":
         answer = answer.strip('"').strip("'")
     answer_dict = {}

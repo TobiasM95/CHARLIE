@@ -51,7 +51,7 @@ class CharlieBackendSession:
                             "gender-user": "male",
                             "language": "EN-US",
                             "memory_size": 3,
-                            "style_en": "nice girl that is pleasant to talk to",
+                            "style_en": "fun but chill girl that's nice to hang out with",
                             "situation_en": "chatting in a discord server with a few friends",
                             "tts-method": "notts",
                         },
