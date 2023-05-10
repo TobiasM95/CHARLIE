@@ -189,7 +189,7 @@ def get_conversation_prompt_chat_gpt(
         message_query += _localize_logged(
             language,
             translation_model,
-            f"Give all four reply options to {name} and don't repeat what was already mentioned in the current excerpt. Repeating what you already said is unnatural! Cut out {name} line from your answer!",
+            f"Give all four reply options to {name} and don't repeat what was already mentioned in the current excerpt. Repeating what you already said is unnatural! Keep the exact format given above except cut out {name} line from your answer!",
             logger,
         )
     print("DEBUG message_query", message_query)
@@ -290,10 +290,18 @@ def _enrich_base_prompt(
 def extract_prompt_answers(full_answer: str):
     print("DEBUG", full_answer)
     full_answer = full_answer.replace("<br>", "<or>").replace("\n", "_N_")
-    answer_1 = list(re.finditer("(?:A.*?Charlie:\s*)(.*?)(?:_N_|$)", full_answer))
-    answer_2 = list(re.finditer("(?:B.*?Charlie:\s*)(.*?)(?:_N_|$)", full_answer))
-    answer_3 = list(re.finditer("(?:C.*?Charlie:\s*)(.*?)(?:_N_|$)", full_answer))
-    answer_4 = list(re.finditer("(?:D.*?Charlie:\s*)(.*?)(?:_N_|$)", full_answer))
+    answer_1 = list(
+        re.finditer("(?:D\..*?)(?:Charlie:|.*?)(?:\s*)(.*?)(?:_N_|$)", full_answer)
+    )
+    answer_2 = list(
+        re.finditer("(?:D\..*?)(?:Charlie:|.*?)(?:\s*)(.*?)(?:_N_|$)", full_answer)
+    )
+    answer_3 = list(
+        re.finditer("(?:D\..*?)(?:Charlie:|.*?)(?:\s*)(.*?)(?:_N_|$)", full_answer)
+    )
+    answer_4 = list(
+        re.finditer("(?:D\..*?)(?:Charlie:|.*?)(?:\s*)(.*?)(?:_N_|$)", full_answer)
+    )
     if len(answer_3) > 0 and not _contains_bad_text(answer_3[-1].group(1)):
         answer = answer_3[-1].group(1)
     elif len(answer_4) > 0 and not _contains_bad_text(answer_4[-1].group(1)):
