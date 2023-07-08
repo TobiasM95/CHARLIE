@@ -487,7 +487,7 @@ class Logger:
             )
             self.last_log_message = f"[{timestamp}][SYSTEM, system] Start session on {weekday} at {timestamp}, session token {self.session_token}, persistency={self.persistent_memory_session}."
             print(self.last_log_message)
-            with open(self.filename, "w") as logfile:
+            with open(self.filename, "w", encoding="utf-8") as logfile:
                 logfile.write(self.last_log_message + "\n")
 
         self.socketio = socketio
@@ -546,6 +546,7 @@ class Logger:
                 f"debug_log{suffix}.txt",
             ),
             "+a",
+            encoding="utf-8",
         ) as debug_logfile:
             debug_logfile.write(log_message + "\n")
         print(f"DEBUG LOG: {log_message}")
@@ -562,7 +563,7 @@ class Logger:
         self.last_log_message = f"[{timestamp}][{mode}, {name}] {text}"
         if verbose:
             print(self.last_log_message)
-        with open(self.filename, "a") as logfile:
+        with open(self.filename, "a", encoding="utf-8") as logfile:
             logfile.write(self.last_log_message + "\n")
 
         if self.socketio is not None:
@@ -577,7 +578,7 @@ class Logger:
         return self.last_log_message
 
     def print_log(self):
-        with open(self.filename, "r") as logfile:
+        with open(self.filename, "r", encoding="utf-8") as logfile:
             for line in logfile:
                 print(line)
 
@@ -588,7 +589,7 @@ class Logger:
         weekday = datetime.now().strftime("%A")
         dir_path, filename_w_ext = os.path.split(os.path.abspath(self.filename))
         filename_wo_ext = filename_w_ext[:-4]
-        with open(self.filename, "r") as logfile:
+        with open(self.filename, "r", encoding="utf-8") as logfile:
             lines = logfile.readlines()
         if (
             len(lines) == 0
@@ -618,7 +619,7 @@ class Logger:
             os.path.join(dir_path, filename_wo_ext + f"_split_{split_count}.txt"),
         )
 
-        with open(self.filename, "w") as newfile:
+        with open(self.filename, "w", encoding="utf-8") as newfile:
             newfile.write(first_line)
             newfile.write(f"[{timestamp}][SYSTEM, system] Continued session logfile.\n")
 

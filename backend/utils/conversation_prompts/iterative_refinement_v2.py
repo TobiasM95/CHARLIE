@@ -152,7 +152,7 @@ def get_conversation_prompt_chat_gpt(
             _localize_logged(
                 language,
                 translation_model,
-                f"With date, situation, memories, and excerpt go ahead and replace the parts in parentheses for A, B, C, and D!",
+                f'With date, situation, memories, and excerpt go ahead and replace the parts in parentheses for A, B, C, and D!\nCharlie has a personality with defined style "{mood_style}". You can additionally invent or think up events that happened or activities that you did, to make the conversation more two-sided.',
                 logger,
             )
             + "\n"
@@ -304,16 +304,16 @@ def extract_prompt_answers(full_answer: str):
     print("DEBUG", full_answer)
     full_answer = full_answer.replace("<br>", "<or>").replace("\n", "_N_")
     answer_1 = list(
-        re.finditer("(?:A\.\s*)(?:.*Charlie:)?(?:\s*?)(.*?)(?:_N_|$)", full_answer)
+        re.finditer("(?:A\.\s*)(?:.*?Charlie:)?(?:\s*?)(.*?)(?:_N_|$)", full_answer)
     )
     answer_2 = list(
-        re.finditer("(?:B\.\s*)(?:.*Charlie:)?(?:\s*?)(.*?)(?:_N_|$)", full_answer)
+        re.finditer("(?:B\.\s*)(?:.*?Charlie:)?(?:\s*?)(.*?)(?:_N_|$)", full_answer)
     )
     answer_3 = list(
-        re.finditer("(?:C\.\s*)(?:.*Charlie:)?(?:\s*?)(.*?)(?:_N_|$)", full_answer)
+        re.finditer("(?:C\.\s*)(?:.*?Charlie:)?(?:\s*?)(.*?)(?:_N_|$)", full_answer)
     )
     answer_4 = list(
-        re.finditer("(?:D\.\s*)(?:.*Charlie:)?(?:\s*?)(.*?)(?:_N_|$)", full_answer)
+        re.finditer("(?:D\.\s*)(?:.*?Charlie:)?(?:\s*?)(.*?)(?:_N_|$)", full_answer)
     )
     print("DEBUG answers pre selection:", [answer_1, answer_2, answer_3, answer_4])
     if len(answer_3) > 0 and not _contains_bad_text(answer_3[-1].group(1)):
