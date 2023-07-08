@@ -160,31 +160,31 @@ def get_conversation_prompt_chat_gpt(
         message_query += (
             f'"A. {name}: {clipped_message} - Charlie: ('
             + _localize_logged(language, translation_model, f"neutral answer", logger)
-            + ")\n<or>\n"
+            + ")\n"
         )
         message_query += (
-            f'"A. {name}: {clipped_message} - Charlie: ('
+            f"B. {name}: {clipped_message} - Charlie: ("
             + _localize_logged(
                 language, translation_model, f"incorporates the style a little", logger
             )
-            + ")\n<or>\n"
+            + ")\n"
         )
         message_query += (
-            f'"A. {name}: {clipped_message} - Charlie: ('
+            f"C. {name}: {clipped_message} - Charlie: ("
             + _localize_logged(
                 language,
                 translation_model,
                 f"goes as far as your guidelines allow",
                 logger,
             )
-            + ")\n<or>\n"
+            + ")\n"
         )
         message_query += (
-            f'"A. {name}: {clipped_message} - Charlie: ('
+            f"D. {name}: {clipped_message} - Charlie: ("
             + _localize_logged(
-                language, translation_model, f'100% "{mood_style}"', logger
+                language, translation_model, f"100% '{mood_style}'", logger
             )
-            + ")\n"
+            + ')"\n'
         )
         message_query += _localize_logged(
             language,
@@ -195,7 +195,8 @@ def get_conversation_prompt_chat_gpt(
     print("DEBUG message_query", message_query)
 
     prompt = [
-        {"role": "user", "content": prompt[0]["content"] + "\n\n" + message_query}
+        prompt[0],
+        {"role": "user", "content": prompt[1]["content"] + "\n\n" + message_query},
     ]
 
     print("DEBUG", prompt, mood_style)
@@ -206,8 +207,19 @@ def get_conversation_prompt_chat_gpt(
 def _get_base_prompt(
     language, translation_model, logger, name, mood_style, group_conversation
 ):
+    prompt = [
+        {
+            "role": "system",
+            "content": _localize_logged(
+                language,
+                translation_model,
+                f"You are an actor and renowned expert in roleplaying different styles that are given to you.",
+                logger,
+            ),
+        }
+    ]
     if group_conversation:
-        prompt = [
+        prompt += [
             {
                 "role": "user",
                 "content": _localize_logged(
@@ -222,7 +234,7 @@ def _get_base_prompt(
         extension = ""
         if name is not None:
             extension = f" with {name}"
-        prompt = [
+        prompt += [
             {
                 "role": "user",
                 "content": _localize_logged(
@@ -281,7 +293,8 @@ def _enrich_base_prompt(
         enriched_content += '"' + additional_parameters["memory-excerpt"][-1] + '"'
 
     prompt = [
-        {"role": "user", "content": prompt[0]["content"] + "\n\n" + enriched_content},
+        prompt[0],
+        {"role": "user", "content": prompt[1]["content"] + "\n\n" + enriched_content},
     ]
 
     return prompt
@@ -302,6 +315,7 @@ def extract_prompt_answers(full_answer: str):
     answer_4 = list(
         re.finditer("(?:D\.\s*)(?:.*Charlie:)?(?:\s*?)(.*?)(?:_N_|$)", full_answer)
     )
+    print("DEBUG answers pre selection:", [answer_1, answer_2, answer_3, answer_4])
     if len(answer_3) > 0 and not _contains_bad_text(answer_3[-1].group(1)):
         answer = answer_3[-1].group(1)
     elif len(answer_4) > 0 and not _contains_bad_text(answer_4[-1].group(1)):
@@ -317,7 +331,10 @@ def extract_prompt_answers(full_answer: str):
     else:
         answer = full_answer
     answer = re.sub("\(.*?\)", "", answer).strip()
+    print("DEBUG slected answer:", answer)
     if answer[0] == '"' or answer[0] == "'":
+        answer = answer.strip('"').strip("'")
+    if (answer.count('"') % 2) != 0 or (answer.count("'") % 2) != 0:
         answer = answer.strip('"').strip("'")
     answer_dict = {}
     answer_dict["none"] = re.sub(

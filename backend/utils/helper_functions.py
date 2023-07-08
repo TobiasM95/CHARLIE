@@ -991,7 +991,7 @@ def prompt_gpt_settings(input_text, language):
     base_prompt.append({"role": "user", "content": input_text})
 
     result = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
+        model=gpt_models[Mode.INFORMATION],
         messages=base_prompt,
         max_tokens=100,
         temperature=0.13,

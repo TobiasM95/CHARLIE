@@ -88,7 +88,6 @@ class RecordingParams:
 
 
 gpt_models = {
-    # Mode.CONVERSATION: "text-davinci-003",
-    Mode.CONVERSATION: "gpt-3.5-turbo",
-    Mode.INFORMATION: "gpt-3.5-turbo",
+    Mode.CONVERSATION: "gpt-4",
+    Mode.INFORMATION: "gpt-4",
 }
