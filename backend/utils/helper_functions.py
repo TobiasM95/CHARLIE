@@ -74,10 +74,13 @@ class Mood:
 
     def _get_style_example(self, style_en, logger):
         style_prompt = [
-            {"role": "system", "content": "You are a speech information system"},
+            {
+                "role": "system",
+                "content": "You are an actor and renowned expert in roleplaying different styles that are given to you.",
+            },
             {
                 "role": "user",
-                "content": f'How would you write a stereotypical response with the style "{style_en}" to the sentence "Hey, wanna hang out?" in text? If you cannot due to your guidelines then give a response that is still within your guidelines instead. Answer with exactly one sentence in quotation marks.',
+                "content": f'How would you write a stereotypical response with the style "{style_en}" to the sentence "Hey, wanna hang out?" in text? If you cannot due to your guidelines then give a response that is still within your guidelines instead, i.e. tone down the style a little bit. Answer with exactly one sentence in quotation marks.',
             },
         ]
         for i in range(5):

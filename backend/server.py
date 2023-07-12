@@ -82,6 +82,40 @@ def requestUserAccess() -> None:
     return {"status": "todo: put some useful info in here"}
 
 
+@app.route("/users/getuserconfig/<string:useruid>", methods=["GET"])
+def handle_getuserconfig(useruid: str) -> dict:
+    config_path: str = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "logfiles",
+        useruid,
+        "charlie_config.json",
+    )
+    if os.path.isfile(config_path):
+        config = json.load(open(config_path, "r", encoding="utf-8"))
+    else:
+        config = {"error": "config does not exist yet"}
+    return config
+
+
+@app.route("/users/resetpersistentconversation/<string:useruid>", methods=["GET"])
+def reset_persistent_memory(useruid: str) -> None:
+    print("resetpersistentmemory")
+    global charlie_sessions
+    persistent_session_ongoing = False
+    for session in charlie_sessions:
+        if session.user_uid == useruid and session.persistent_memory_session:
+            persistent_session_ongoing = True
+
+    if not persistent_session_ongoing:
+        persistent_session_path = os.path.join(
+            os.path.dirname(__file__), "logfiles", useruid, "persistent_session"
+        )
+        if os.path.isdir(persistent_session_path):
+            shutil.rmtree(persistent_session_path)
+
+    return {"status": 200}
+
+
 @app.route("/conversations/<string:useruid>")
 def get_conversations_as_dict(useruid="0" * 21) -> dict:
     conversation_list_unsorted = []

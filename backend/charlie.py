@@ -746,6 +746,20 @@ class Charlie:
             socketio.emit("live2dchangemodelmale", self.session_token)
         else:
             socketio.emit("live2dchangemodelfemale", self.session_token)
+
+        if self.logger is not None and self.logger.npm_logfile_dir is not None:
+            json.dump(
+                base_config,
+                open(
+                    os.path.join(
+                        self.logger.npm_logfile_dir, "..", "charlie_config.json"
+                    ),
+                    "w",
+                    encoding="utf-8",
+                ),
+                indent=4,
+            )
+
         self.logger.log(uds.Mode.SYSTEM, "system", "Ready to accept input..")
 
     def end_conversation(self):
@@ -867,6 +881,19 @@ class Charlie:
             self.socketio.emit("live2dchangemodelmale", self.session_token)
         else:
             self.socketio.emit("live2dchangemodelfemale", self.session_token)
+
+        if self.logger is not None and self.logger.npm_logfile_dir is not None:
+            json.dump(
+                new_config,
+                open(
+                    os.path.join(
+                        self.logger.npm_logfile_dir, "..", "charlie_config.json"
+                    ),
+                    "w",
+                    encoding="utf-8",
+                ),
+                indent=4,
+            )
 
         self.logger.log(
             uds.Mode.SYSTEM, "system", f"Changed config to {self.config['base']}"

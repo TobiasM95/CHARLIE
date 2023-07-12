@@ -4,7 +4,7 @@ import copy
 from datetime import datetime
 import concurrent.futures
 
-from ..data_structs import Language
+from ..data_structs import Language, MessagePair
 
 # conversation prompt interfaces have to implement at least the following functions and dictionaries:
 #
@@ -60,8 +60,10 @@ def get_conversation_prompt_chat_gpt(
 
     # select the last N messages based on memory buffer size and configuration
     relevant_message_pairs = []
-    if remembered_message_count > len(memory_buffer):
+    start_of_conversation = False
+    if remembered_message_count >= len(memory_buffer):
         remembered_message_count = len(memory_buffer)
+        start_of_conversation = True
     for i in range(remembered_message_count):
         relevant_message_pairs.append(memory_buffer[-1 - i])
 
@@ -116,7 +118,21 @@ def get_conversation_prompt_chat_gpt(
         )
     print("DEBUG enriched prompt:", prompt)
 
-    message_query = 'With all the information above, this is the current excerpt:\n"'
+    message_query = (
+        'With all the information above, this is the current conversation:\n"'
+    )
+    if start_of_conversation:
+        message_query += (
+            _localize_logged(
+                language,
+                translation_model,
+                f"Start of conversation",
+                logger,
+            )
+            + ":\n"
+        )
+    else:
+        message_query += "[...]\n"
     if len(relevant_message_pairs) > 0:
         reversed_relevant_message_pairs = list(reversed(relevant_message_pairs))
         for message_pair in reversed_relevant_message_pairs:
@@ -152,7 +168,7 @@ def get_conversation_prompt_chat_gpt(
             _localize_logged(
                 language,
                 translation_model,
-                f'With date, situation, memories, and excerpt go ahead and replace the parts in parentheses for A, B, C, and D!\nCharlie has a personality with defined style "{mood_style}". You can additionally invent or think up events that happened or activities that you did, to make the conversation more two-sided.',
+                f'With date, situation, memories, and excerpt go ahead and replace the parts in parentheses for A, B, C, and D!\nCharlie has a personality with defined style "{mood_style}". You can additionally invent or think up events that happened or activities that Charlie did, to make the conversation more two-sided (only Charlie, don\'t invent stories/events for {name}).',
                 logger,
             )
             + "\n"

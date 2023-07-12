@@ -4,6 +4,8 @@ import { SHA256 } from "crypto-js"
 const baseUrl = apiURL + '/users';
 const convAccessUrl = baseUrl + "/access/"
 const convRequestAccessUrl = baseUrl + "/requestaccess"
+const configGetUrl = baseUrl + "/getuserconfig/"
+const resetPersConvUrl = baseUrl + "/resetpersistentconversation/"
 
 function translateStatusToErrorMessage(status: number) {
     switch (status) {
@@ -67,6 +69,29 @@ const userAPI = {
             }
         };
         return fetch(`${convRequestAccessUrl}`, options)
+            .then(checkStatus)
+            .catch((error: TypeError) => {
+                console.log('log client error ' + error);
+                throw new Error(
+                    'There was an error retrieving the conversations overview. Please try again.'
+                );
+            });
+    },
+
+    getConfig(userUID: string): Promise<object> {
+        return fetch(`${configGetUrl}${userUID}`)
+            .then(checkStatus)
+            .then(parseJSON)
+            .catch((error: TypeError) => {
+                console.log('log client error ' + error);
+                throw new Error(
+                    'There was an error retrieving the conversations overview. Please try again.'
+                );
+            });
+    },
+
+    resetPersistentConversation(userUID: string): Promise<void> {
+        return fetch(`${resetPersConvUrl}${userUID}`)
             .then(checkStatus)
             .catch((error: TypeError) => {
                 console.log('log client error ' + error);

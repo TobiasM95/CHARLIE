@@ -4,6 +4,7 @@ import useState from 'react-usestateref'
 import { ConversationInfo } from "./ConversationInfo";
 import { ConversationContent, ConversationMessage } from "./ConversationContent";
 import { conversationsOverviewAPI, conversationContentAPI } from "./ConversationsOverviewAPI";
+import { userAPI } from "./UserAPI";
 import { wsURL } from "../Settings/Constants";
 
 import MuiAppBar from "@mui/material/AppBar";
@@ -27,6 +28,7 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import HomeIcon from '@mui/icons-material/Home';
 import VolumeUpIcon from '@mui/icons-material/VolumeUp';
 import VolumeDownIcon from '@mui/icons-material/VolumeDown';
+import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
 import { THEMENAME } from "../App";
 import Switch from "@mui/material/Switch";
 import moment from "moment";
@@ -126,6 +128,28 @@ function ConversationsPage({ changeAppTheme, logOutFunc, userFirstName, userSUB 
   const [settingSituation, setSettingSituation, settingSituationRef] = useState<string>("hanging out together");
   const [settingTTSMethod, setSettingTTSMethod, settingTTSMethodRef] = useState<string>("google_tts");
 
+  function setDefaultConfig() {
+    setSettingUserName("John");
+    setSettingCharlieGender("female");
+    setSettingUserGender("male");
+    setSettingLanguage("EN-US");
+    setSettingMemorySize(3);
+    setSettingStyle("a good mate");
+    setSettingSituation("hanging out together");
+    setSettingTTSMethod("google_tts");
+  }
+
+  function setConfig(config: any) {
+    setSettingUserName(config["name"]);
+    setSettingCharlieGender(config["gender"]);
+    setSettingUserGender(config["gender-user"]);
+    setSettingLanguage(config["language"]);
+    setSettingMemorySize(config["memory_size"]);
+    setSettingStyle(config["style_en"]);
+    setSettingSituation(config["situation_en"]);
+    setSettingTTSMethod(config["tts-method"]);
+  }
+
   function handleLogOutSelection() {
     setRecording(false);
     setIsVoiceRecording(false);
@@ -151,6 +175,22 @@ function ConversationsPage({ changeAppTheme, logOutFunc, userFirstName, userSUB 
       //initCharlieREST()
     }
     setMode("CONVERSATION")
+  }
+
+  const resetPersistentConversation = () => {
+    async function resetPersistentConversation(userUID: string) {
+      try {
+        await userAPI.resetPersistentConversation(userUID);
+        setError("");
+      } catch (e) {
+        if (e instanceof Error) {
+          setError(e.message);
+        }
+      }
+    }
+    if (userUID) {
+      resetPersistentConversation(userUID)
+    }
   }
 
   const [conversationID, setConversationID] = useState<number>(-1);
@@ -231,6 +271,19 @@ function ConversationsPage({ changeAppTheme, logOutFunc, userFirstName, userSUB 
         setCanInteract(data["isResponsive"])
         console.log(data, data["isResponsive"])
       });
+
+      socket.on("returnuserconfig", (data) => {
+        console.log("returnuserconfig", sessionTokenRef.current, data["session_token"]);
+        if (sessionTokenRef.current !== data["session_token"]) {
+          return;
+        }
+        if ("error" in data["config"]) {
+          setDefaultConfig();
+        }
+        else {
+          setConfig(data["config"]);
+        }
+      })
 
       socket.on("convmsg", (data) => {
         console.log("convmsg", sessionTokenRef.current, data["session_token"]);
@@ -356,6 +409,31 @@ function ConversationsPage({ changeAppTheme, logOutFunc, userFirstName, userSUB 
       socketInstance.emit("sendmessage", sessionTokenRef.current, message)
     }
   }
+
+  useEffect(() => {
+    async function getUserConfig(userUID: string) {
+      try {
+        const config = await userAPI.getConfig(userUID);
+        setError("");
+        if ("error" in config) {
+          setDefaultConfig();
+        }
+        else {
+          setConfig(config);
+        }
+      } catch (e) {
+        if (e instanceof Error) {
+          setError(e.message);
+        }
+        setDefaultConfig()
+      }
+    }
+    if (userUID) {
+      getUserConfig(userUID)
+    } else {
+      setDefaultConfig();
+    }
+  }, [userUID])
 
   useEffect(() => {
     async function updateConversationData(id: number) {
@@ -522,7 +600,7 @@ function ConversationsPage({ changeAppTheme, logOutFunc, userFirstName, userSUB 
             </ListItemButton>
           </ListItem>
           <ListItem
-            key="startNewConvo"
+            key="startNewPersistentConvo"
             disablePadding
           >
             <ListItemButton onClick={() => handleStartConversationSelection(true)}>
@@ -530,6 +608,17 @@ function ConversationsPage({ changeAppTheme, logOutFunc, userFirstName, userSUB 
                 <Icon><img src={"./images/charlieAvatarFemaleIcon.png"} height={24} width={24} /></Icon>
               </ListItemIcon>
               <ListItemText primary="Persistent chat (BETA)" />
+            </ListItemButton>
+          </ListItem>
+          <ListItem
+            key="resetPersistentConvo"
+            disablePadding
+          >
+            <ListItemButton onClick={() => resetPersistentConversation()}>
+              <ListItemIcon>
+                <DeleteSweepIcon />
+              </ListItemIcon>
+              <ListItemText primary="RESET persistent chat" />
             </ListItemButton>
           </ListItem>
           <ListItem
