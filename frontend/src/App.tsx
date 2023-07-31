@@ -1,19 +1,21 @@
 import { PaletteColorOptions, Theme, ThemeProvider, createTheme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
-import ConversationsPage from "./conversations-overview/ConversationsPage";
+import MainPageD from "./charlie-interface-desktop/MainPage";
+import MainPageM from "./charlie-interface-mobile/MainPage";
 import { useEffect, useRef, useState } from "react";
 import Button from "@mui/material/Button";
 import { Alert, Box, Stack, Typography } from "@mui/material";
 import jwtDecode from "jwt-decode";
-import { userAPI } from "./conversations-overview/UserAPI";
+import { userAPI } from "./datastructs/UserAPI";
 import gis_info from "./Settings/gis_client_id.json";
+import { useScreenSize } from "./hooks/useScreenSize";
 
 declare module "@mui/material/styles" {
   interface CustomPalette {
     customGrey: PaletteColorOptions;
   }
-  interface Palette extends CustomPalette {}
-  interface PaletteOptions extends CustomPalette {}
+  interface Palette extends CustomPalette { }
+  interface PaletteOptions extends CustomPalette { }
 }
 
 declare module "@mui/material/Button" {
@@ -65,6 +67,7 @@ function App() {
   const [hasUserAccess, setHasUserAccess] = useState<boolean | undefined>(undefined);
   const [hasUserRequestedAccess, setHasUserRequestedAccess] = useState<boolean>(false);
   const [error, setError] = useState<string | undefined>(undefined);
+  const mediaQueryResult = useScreenSize();
 
   const changeAppTheme = (themeName: THEMENAME) => {
     if (themeName === "DARK") {
@@ -170,25 +173,35 @@ function App() {
         callback: handleCallbackResponse
       });
 
-      if (divRef.current) {
-        window.google.accounts.id.renderButton(divRef.current, {
-          theme: "filled_black",
-          size: "large",
-          type: "standard",
-          shape: "rectangular",
-          width: "350",
-          text: "signin_with"
-        });
-      }
+      // if (divRef.current) {
+      //   window.google.accounts.id.renderButton(divRef.current, {
+      //     theme: "filled_black",
+      //     size: "large",
+      //     type: "standard",
+      //     shape: "rectangular",
+      //     width: "350",
+      //     text: "signin_with"
+      //   });
+      // }
     }
   }, [isLoggedIn]);
 
   return (
     <ThemeProvider theme={appTheme}>
       <CssBaseline />
-      {isLoggedIn && hasUserAccess === true && userObject && (
+      {isLoggedIn && hasUserAccess === true && userObject && mediaQueryResult && mediaQueryResult["isMobile"] == false && (
         <div className="container">
-          <ConversationsPage
+          <MainPageD
+            changeAppTheme={changeAppTheme}
+            logOutFunc={handleLogOut}
+            userFirstName={userObject.given_name}
+            userSUB={userObject.sub}
+          />
+        </div>
+      )}
+      {isLoggedIn && hasUserAccess === true && userObject && mediaQueryResult && mediaQueryResult["isMobile"] == true && (
+        <div className="container">
+          <MainPageM
             changeAppTheme={changeAppTheme}
             logOutFunc={handleLogOut}
             userFirstName={userObject.given_name}

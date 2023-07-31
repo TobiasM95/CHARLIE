@@ -4,9 +4,24 @@
     padding: 20px;
 }
 
-.live2diframe {
+/* .live2diframe {
     pointer-events: none;
     clip-path: polygon(0% 0%, 100% 0%, 100% 40%, 0% 40%);
+    height: auto;
+} */
+
+.live2d-container {
+    height: 250%;
+    overflow: hidden;
+    position: relative;
+    clip-path: polygon(0% 0%, 100% 0%, 100% 38%, 0% 38%);
+}
+
+.live2diframe {
+    pointer-events: none;
+    position: absolute;
+    height: 100%;
+    top: -3%;
 }
 
 .charlieBackgroundTextBox {

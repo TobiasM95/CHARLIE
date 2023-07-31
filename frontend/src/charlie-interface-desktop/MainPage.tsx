@@ -1,10 +1,10 @@
 import "../index.css";
 import { useEffect } from "react";
 import useState from 'react-usestateref'
-import { ConversationInfo } from "./ConversationInfo";
-import { ConversationContent, ConversationMessage } from "./ConversationContent";
-import { conversationsOverviewAPI, conversationContentAPI } from "./ConversationsOverviewAPI";
-import { userAPI } from "./UserAPI";
+import { ConversationInfo } from "../datastructs/ConversationInfo";
+import { ConversationContent, ConversationMessage } from "../datastructs/ConversationContent";
+import { conversationsOverviewAPI, conversationContentAPI } from "../datastructs/ConversationsOverviewAPI";
+import { userAPI } from "../datastructs/UserAPI";
 import { wsURL } from "../Settings/Constants";
 
 import MuiAppBar from "@mui/material/AppBar";
@@ -65,14 +65,14 @@ function StringToConversationMessage(index: number, message: string): Conversati
   return convMsg;
 }
 
-export interface IConversationsPageProps {
+export interface IMainPageDProps {
   changeAppTheme: (themeName: THEMENAME) => void;
   logOutFunc: () => void;
   userFirstName: string;
   userSUB: string; // is a google account unique ID
 }
 
-function ConversationsPage({ changeAppTheme, logOutFunc, userFirstName, userSUB }: IConversationsPageProps) {
+function MainPageD({ changeAppTheme, logOutFunc, userFirstName, userSUB }: IMainPageDProps) {
   type Mode = "DEFAULT" | "CONVERSATION" | "REVIEW"; // | "SETTINGS"
 
   //This is temporary for quicker development and only allows a toggle between light and dark theme
@@ -1042,4 +1042,4 @@ function ConversationsPage({ changeAppTheme, logOutFunc, userFirstName, userSUB 
   );
 }
 
-export default ConversationsPage;
+export default MainPageD;

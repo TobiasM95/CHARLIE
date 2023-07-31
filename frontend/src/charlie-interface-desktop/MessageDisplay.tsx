@@ -1,5 +1,5 @@
 import Typography from "@mui/material/Typography";
-import { ConversationMessage } from "./ConversationContent";
+import { ConversationMessage } from "../datastructs/ConversationContent";
 import Box from "@mui/material/Box";
 import Grid from "@mui/material/Grid";
 import Avatar from "@mui/material/Avatar";
@@ -50,7 +50,7 @@ const Message = (bgcolor: string, message: ConversationMessage, variant: any = "
   </Box>
 );
 
-const ConversationMessageDisplay: React.FunctionComponent<IConversationMessageProps> = ({ id, message, gender }: IConversationMessageProps) => {
+const MessageDisplay: React.FunctionComponent<IConversationMessageProps> = ({ id, message, gender }: IConversationMessageProps) => {
   if (message.mode === "SYSTEM") {
     return (
       <Grid
@@ -140,4 +140,4 @@ const ConversationMessageDisplay: React.FunctionComponent<IConversationMessagePr
   }
 };
 
-export default ConversationMessageDisplay;
+export default MessageDisplay;

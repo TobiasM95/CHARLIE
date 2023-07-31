@@ -2,11 +2,12 @@ import Grid from "@mui/material/Grid";
 import TextField from "@mui/material/TextField";
 import ToggleButton from "@mui/material/ToggleButton";
 import SendIcon from '@mui/icons-material/Send';
+import MicIcon from '@mui/icons-material/Mic';
 import Button from "@mui/material/Button";
 import { useEffect, useRef, useState } from "react";
-import { ConversationMessage } from "./ConversationContent";
-import ConversationCurrentPage from "./ConversationCurrentPage";
-import Live2dIframe from "./Live2dIframe";
+import { ConversationMessage } from "../datastructs/ConversationContent";
+import ChatHistoryDisplay from "./ChatHistoryDisplay";
+import Live2dIframe from "../common/Live2dIframe";
 import '../index.css';
 
 
@@ -50,42 +51,23 @@ function ConversationPage({ toolbarHeight, canInteract, sendMessageFunction, con
             sx={{
                 height: `calc(100vh - ${toolbarHeight})`,
                 marginTop: toolbarHeight,
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'flex-end'
+                overflowX: "hidden",
+                overflowY: "auto",
+                direction: "column"
             }}>
-            <Grid
-                item
-                xs
-                sx={{
-                    overflowY: "auto"
-                }}
-                display="flex"
-                flexDirection="row"
-                justifyContent="center"
-            >
-                <Grid item xs={8}
-                    sx={{
-                        overflowY: "auto",
-                        overflowX: "hidden"
-                    }}>
-                    <ConversationCurrentPage
-                        conversationMessages={conversationMessages}
-                        showSystemMessages={showSystemMessages}
-                        gender={gender}
-                    />
-                    <div ref={messagesEndRef as React.RefObject<HTMLDivElement>} />
-                </Grid>
-                <Grid item xs={4}
-                    sx={{
-                        overflowY: "hidden",
-                        overflowX: "hidden"
-                    }}>
-                    <Live2dIframe session_token={session_token} />
-                </Grid>
+            <Grid item xs={12} style={{ height: `calc((100vh - ${toolbarHeight}) * 0.22)` }}>
+                <Live2dIframe session_token={session_token} />
             </Grid>
-            <Grid item xs="auto" container>
-                <Grid item xs="auto" display="flex" flexDirection="row" justifyContent="center">
+            <Grid xs={12} item container style={{ height: `calc((100vh - ${toolbarHeight}) * 0.7)`, overflowY: 'auto', overflowX: "hidden", flexGrow: 1 }}>
+                <ChatHistoryDisplay
+                    conversationMessages={conversationMessages}
+                    showSystemMessages={showSystemMessages}
+                    gender={gender}
+                />
+                <div ref={messagesEndRef as React.RefObject<HTMLDivElement>} />
+            </Grid>
+            <Grid item container xs={12} style={{ height: `calc((100vh - ${toolbarHeight}) * 0.08)` }}>
+                <Grid item xs={2} display="flex" flexDirection="column" flexGrow="2">
                     <ToggleButton
                         value="check"
                         color={canInteract ? (isVoiceRecording ? "success" : "primary") : "error"}
@@ -93,15 +75,14 @@ function ConversationPage({ toolbarHeight, canInteract, sendMessageFunction, con
                         onChange={() => { setRecording(!isRecording); }}
                         disabled={!canInteract}
                     >
-                        Activate microphone input
+                        <MicIcon />
                     </ToggleButton>
                 </Grid>
-                <Grid item xs>
+                <Grid item xs={8}>
                     <TextField
                         id="outlined-multiline-flexible"
-                        label="Message to Charlie"
                         multiline
-                        rows={2}
+                        maxRows={4}
                         fullWidth
                         value={messageState}
                         onChange={(event) => { setMessageState(event.target.value) }}
@@ -110,7 +91,7 @@ function ConversationPage({ toolbarHeight, canInteract, sendMessageFunction, con
                         inputRef={inputTextFieldRef}
                     />
                 </Grid>
-                <Grid item xs="auto" display="flex" flexDirection="row" flexGrow="1">
+                <Grid item xs={2} display="flex" flexDirection="row" flexGrow="1">
                     <Button variant={"contained"} onClick={() => { sendMessageFunction(messageState); setMessageState(""); }} disabled={!canInteract || isRecording}>
                         <SendIcon />
                     </Button>

@@ -1,6 +1,6 @@
 import Grid from "@mui/material/Grid";
-import ConversationMessageDisplay from "./ConversationMessageDisplay";
-import { ConversationContent } from "./ConversationContent";
+import MessageDisplay from "./MessageDisplay";
+import { ConversationContent } from "../datastructs/ConversationContent";
 
 interface IConversationReviewPageProps {
     conversationContent: ConversationContent | undefined;
@@ -14,12 +14,14 @@ function ConversationReviewPage({ conversationContent, showSystemMessages, toolb
         <Grid
             container
             item
-            xs={8}
+            xs={11}
             rowSpacing={1}
             sx={{
                 maxHeight: `calc(100vh - ${toolbarHeight})`,
                 marginTop: toolbarHeight,
                 p: 2,
+                overflowX: "hidden",
+                overflowY: "auto"
             }}
         >
             {conversationContent?.messages.filter((message) => (message.mode !== 'SYSTEM' || showSystemMessages)).map((message, id) => (
@@ -28,7 +30,7 @@ function ConversationReviewPage({ conversationContent, showSystemMessages, toolb
                     xs={12}
                     key={id}
                 >
-                    <ConversationMessageDisplay
+                    <MessageDisplay
                         key={id}
                         id={id}
                         message={message}

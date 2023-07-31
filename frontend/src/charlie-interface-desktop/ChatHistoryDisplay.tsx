@@ -1,14 +1,14 @@
 import Grid from "@mui/material/Grid";
-import ConversationMessageDisplay from "./ConversationMessageDisplay";
-import { ConversationMessage } from "./ConversationContent";
+import MessageDisplay from "./MessageDisplay";
+import { ConversationMessage } from "../datastructs/ConversationContent";
 
-interface IConversationCurrentPageProps {
+interface IChatHistoryDisplayProps {
     conversationMessages: ConversationMessage[];
     showSystemMessages: boolean;
     gender: string;
 }
 
-function ConversationCurrentPage({ conversationMessages, showSystemMessages, gender }: IConversationCurrentPageProps) {
+function ChatHistoryDisplay({ conversationMessages, showSystemMessages, gender }: IChatHistoryDisplayProps) {
     return (
         <Grid
             container
@@ -22,7 +22,7 @@ function ConversationCurrentPage({ conversationMessages, showSystemMessages, gen
                     xs={12}
                     key={id}
                 >
-                    <ConversationMessageDisplay
+                    <MessageDisplay
                         key={id}
                         id={id}
                         message={message}
@@ -34,4 +34,4 @@ function ConversationCurrentPage({ conversationMessages, showSystemMessages, gen
     )
 }
 
-export default ConversationCurrentPage
+export default ChatHistoryDisplay
