@@ -118,9 +118,7 @@ def get_conversation_prompt_chat_gpt(
         )
     print("DEBUG enriched prompt:", prompt)
 
-    message_query = (
-        'With all the information above, this is the current conversation:\n"'
-    )
+    message_query = 'With all the information above, this is the current chat log:\n"'
     if start_of_conversation:
         message_query += (
             _localize_logged(
@@ -156,7 +154,7 @@ def get_conversation_prompt_chat_gpt(
         #     + "\n"
         # )
         # message_query += f'"{text}"\n'
-        # message_query += f"Now, take date, situation, memories, excerpt and your instruction and give reply options A,B,C,D according to the instruction:"
+        # message_query += f"Now, take date, situation, memories, chat log, hints and your instruction and give reply options A,B,C,D according to the instruction:"
         assert False
     else:
         # clipped_message = " ".join(text.split(" ")[:5])
@@ -168,7 +166,7 @@ def get_conversation_prompt_chat_gpt(
             _localize_logged(
                 language,
                 translation_model,
-                f'With date, situation, memories, and excerpt go ahead and replace the parts in parentheses for A, B, C, and D!\nCharlie has a personality with defined style "{mood_style}". You can additionally invent or think up events that happened or activities that Charlie did, to make the conversation more two-sided (only Charlie, don\'t invent stories/events for {name}). Be careful to listen to the excerpt and what was said.',
+                f"\nHints for a realistic conversation:\nCharlie has a personality with defined style \"{mood_style}\".\nYou can additionally invent or think up events that happened or activities that Charlie did, to make the conversation more two-sided (only Charlie, don't invent stories/events for {name}).\nBe careful to listen to the chat log and what was said.\nImportantly, ask questions to Tobi and don't only talk about yourself\n\nWith date, situation, memories, chat log and hints go ahead and replace the parts in parentheses for A, B, C, and D!",
                 logger,
             )
             + "\n"
@@ -205,7 +203,7 @@ def get_conversation_prompt_chat_gpt(
         message_query += _localize_logged(
             language,
             translation_model,
-            f"Give all four reply options to {name} and don't repeat what was already mentioned in the current excerpt. Repeating what you already said is unnatural! Keep the exact format given above except cut out {name} line from your answer!",
+            f"Give all four reply options to {name} and don't repeat what was already mentioned in the current chat log. Repeating what you already said is unnatural! Keep the exact format given above except cut out {name} line from your answer!",
             logger,
         )
     print("DEBUG message_query", message_query)
