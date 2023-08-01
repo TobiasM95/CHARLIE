@@ -173,16 +173,15 @@ function App() {
         callback: handleCallbackResponse
       });
 
-      // if (divRef.current) {
-      //   window.google.accounts.id.renderButton(divRef.current, {
-      //     theme: "filled_black",
-      //     size: "large",
-      //     type: "standard",
-      //     shape: "rectangular",
-      //     width: "350",
-      //     text: "signin_with"
-      //   });
-      // }
+      if (divRef.current) {
+        window.google.accounts.id.renderButton(divRef.current, {
+          theme: "filled_black",
+          size: "large",
+          type: "standard",
+          shape: "rectangular",
+          text: "signin_with"
+        });
+      }
     }
   }, [isLoggedIn]);
 
