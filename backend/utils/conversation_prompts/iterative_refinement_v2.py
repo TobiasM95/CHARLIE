@@ -168,7 +168,7 @@ def get_conversation_prompt_chat_gpt(
             _localize_logged(
                 language,
                 translation_model,
-                f'With date, situation, memories, and excerpt go ahead and replace the parts in parentheses for A, B, C, and D!\nCharlie has a personality with defined style "{mood_style}". You can additionally invent or think up events that happened or activities that Charlie did, to make the conversation more two-sided (only Charlie, don\'t invent stories/events for {name}).',
+                f'With date, situation, memories, and excerpt go ahead and replace the parts in parentheses for A, B, C, and D!\nCharlie has a personality with defined style "{mood_style}". You can additionally invent or think up events that happened or activities that Charlie did, to make the conversation more two-sided (only Charlie, don\'t invent stories/events for {name}). Be careful to listen to the excerpt and what was said.',
                 logger,
             )
             + "\n"
@@ -229,7 +229,7 @@ def _get_base_prompt(
             "content": _localize_logged(
                 language,
                 translation_model,
-                f"You are an actor and renowned expert in roleplaying different styles that are given to you.",
+                f"You are an actor and renowned expert in playing different roles with styles that are given to you.",
                 logger,
             ),
         }

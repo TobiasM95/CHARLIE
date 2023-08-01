@@ -599,7 +599,7 @@ function MainPageM({ changeAppTheme, logOutFunc, userFirstName, userSUB }: IMain
         </Toolbar>
       </MuiAppBar>
       <Drawer
-        variant="persistent"
+        variant="temporary"
         anchor="left"
         open={drawerOpen}
         sx={{
@@ -913,6 +913,9 @@ function MainPageM({ changeAppTheme, logOutFunc, userFirstName, userSUB }: IMain
                 <MenuItem value={1}>1</MenuItem>
                 <MenuItem value={2}>2</MenuItem>
                 <MenuItem value={3}>3</MenuItem>
+                <MenuItem value={4}>4</MenuItem>
+                <MenuItem value={5}>5</MenuItem>
+                <MenuItem value={6}>6</MenuItem>
               </Select>
             </ListItem>
             <ListItem
