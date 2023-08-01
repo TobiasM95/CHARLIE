@@ -905,6 +905,7 @@ class CharlieSession:
         self.user_uid: str = user_uid
         self.session_token: str = self._create_session_token(user_uid)
         self.last_update: datetime.datetime = datetime.datetime.today()
+        self.is_active: bool = True
         memory_database = None
         if persistent:
             memory_vector_db_path = os.path.join(
@@ -941,6 +942,12 @@ class CharlieSession:
         h = hashlib.new("sha256")
         h.update((user_uid + timestamp_str).encode())
         return h.hexdigest()
+
+    def update_active_status(self):
+        if (datetime.datetime.today - self.last_update).seconds > 60 * 15:
+            self.is_active = False
+        else:
+            self.is_active = True
 
 
 if __name__ == "__main__":

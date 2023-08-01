@@ -603,12 +603,17 @@ class Logger:
         first_line = lines[0]
 
         session_start_timestamp_match = re.match("\[(.*?)\]", first_line)
+        session_token_match = re.match("session token (.*?),", first_line)
+        if session_token_match is not None:
+            session_token = session_token_match.group(1)
+        else:
+            session_token = "INVALIDATEDSESSIONTOKEN"
         if session_start_timestamp_match is None:
-            first_line = f"[{timestamp}][SYSTEM, system] Start session on {weekday} at {timestamp}, session token INVALIDATEDSESSIONTOKEN, persistency={self.persistent_memory_session}."
+            first_line = f"[{timestamp}][SYSTEM, system] Start session on {weekday} at {timestamp}, session token {session_token}, persistency={self.persistent_memory_session}.\n"
             session_start = timestamp
         else:
             session_start = session_start_timestamp_match.group(1)
-            first_line = f"[{session_start}][SYSTEM, system] Start session on {weekday} at {timestamp}, session token INVALIDATEDSESSIONTOKEN, persistency={self.persistent_memory_session}."
+            first_line = f"[{session_start}][SYSTEM, system] Start session on {weekday} at {timestamp}, session token {session_token}, persistency={self.persistent_memory_session}.\n"
         session_start_formatted = session_start.replace(":", "-")
         split_count = len(
             [

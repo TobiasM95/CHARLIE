@@ -501,11 +501,9 @@ def _get_responsiveness(session_token: str) -> bool:
 def _add_session(session: charlie.CharlieSession) -> None:
     global charlie_sessions
     # cleanup old sessions
-    current_timestamp: datetime.datetime = datetime.datetime.today()
     for session_token, charlie_session in charlie_sessions.items():
-        if (current_timestamp - charlie_session.last_update) > datetime.timedelta(
-            seconds=60 * 60
-        ):
+        charlie_session.update_active_status()
+        if not charlie_session.is_active:
             print(f"End session {session_token} due to old age")
             charlie_session.charlie_instance.end_conversation()
             _del_session(session_token)
@@ -566,12 +564,16 @@ def _memorization_cleanup(quit_event):
         if quit_event.is_set():
             break
         if update_timer >= update_after:
+            print("Check for inactive sessions...")
+            for session in charlie_sessions.values():
+                session.update_active_status()
             print("Start memorization progress in background..")
             active_logfiles = []
             for session in charlie_sessions.values():
                 if (
                     session.charlie_instance.initialized
                     and session.charlie_instance.logger.filename is not None
+                    and session.is_active
                 ):
                     active_logfiles.append(session.charlie_instance.logger.filename)
             uhf.memorize_conversations(active_logfiles, memorization_logger)
