@@ -1,6 +1,7 @@
 import Grid from "@mui/material/Grid";
 import MessageDisplay from "./MessageDisplay";
 import { ConversationMessage } from "../datastructs/ConversationContent";
+import { useEffect, useRef } from "react";
 
 interface IChatHistoryDisplayProps {
     conversationMessages: ConversationMessage[];
@@ -9,6 +10,12 @@ interface IChatHistoryDisplayProps {
 }
 
 function ChatHistoryDisplay({ conversationMessages, showSystemMessages, gender }: IChatHistoryDisplayProps) {
+    const messagesEndRef = useRef<HTMLDivElement>()
+
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'auto' })
+    });
+
     return (
         <Grid
             container
@@ -31,6 +38,7 @@ function ChatHistoryDisplay({ conversationMessages, showSystemMessages, gender }
                     />
                 </Grid>
             ))}
+            <div ref={messagesEndRef as React.RefObject<HTMLDivElement>} />
         </Grid>
     )
 }

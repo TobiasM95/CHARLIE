@@ -28,7 +28,6 @@ interface IConversationPageProps {
 function ConversationPage({ toolbarHeight, canInteract, sendMessageFunction, conversationMessages, showSystemMessages, isRecording, setRecording, isVoiceRecording, isResponseAudioPlaying, gender, session_token }: IConversationPageProps) {
 
     const [messageState, setMessageState] = useState<string>("")
-    const messagesEndRef = useRef<HTMLDivElement>()
     const inputTextFieldRef = useRef<HTMLDivElement>()
 
     function handleTextFieldKeyDown(event: any) {
@@ -38,10 +37,6 @@ function ConversationPage({ toolbarHeight, canInteract, sendMessageFunction, con
             setMessageState("");
         }
     }
-
-    useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'auto' })
-    });
 
     useEffect(() => {
         inputTextFieldRef.current?.focus();
@@ -65,7 +60,6 @@ function ConversationPage({ toolbarHeight, canInteract, sendMessageFunction, con
                     showSystemMessages={showSystemMessages}
                     gender={gender}
                 />
-                <div ref={messagesEndRef as React.RefObject<HTMLDivElement>} />
             </Grid>
             <Grid item container xs={12} style={{ height: `calc((100vh - ${toolbarHeight}) * 0.08)` }}>
                 <Grid item xs={2} display="flex" flexDirection="column" flexGrow="2">
