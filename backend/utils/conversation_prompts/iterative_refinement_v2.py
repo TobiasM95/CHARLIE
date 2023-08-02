@@ -2,6 +2,7 @@ import re
 from functools import cache
 import copy
 from datetime import datetime
+import random
 import concurrent.futures
 
 from ..data_structs import Language, MessagePair
@@ -166,7 +167,7 @@ def get_conversation_prompt_chat_gpt(
             _localize_logged(
                 language,
                 translation_model,
-                f"\nHints for a realistic conversation:\nCharlie has a personality with defined style \"{mood_style}\".\nYou can additionally invent or think up events that happened or activities that Charlie did, to make the conversation more two-sided (only Charlie, don't invent stories/events for {name}).\nBe careful to listen to the chat log and what was said.\nImportantly, ask questions to Tobi and don't only talk about yourself. Asking questions is natural.\n\nWith date, situation, memories, chat log and hints go ahead and replace the parts in parentheses for A, B, C, and D!",
+                f"\nHints for a realistic conversation:\nCharlie has a personality with defined style \"{mood_style}\".\nYou can additionally come up with events or activities that happened ONLY to Charlie but NOT TO {name} OR BOTH since {name} would know that it's fake, to make the conversation more two-sided.\nBe careful to listen to the chat log and what was said.\nYou can give short answers as well from time to time, variation is natural.\nImportantly, ask questions to Tobi and don't only talk about yourself. Asking questions is natural.\n\nWith date, situation, memories, chat log and hints go ahead and replace the parts in parentheses for A, B, C, and D!",
                 logger,
             )
             + "\n"
@@ -227,7 +228,7 @@ def _get_base_prompt(
             "content": _localize_logged(
                 language,
                 translation_model,
-                f"You are an actor and renowned expert in playing different roles with styles that are given to you.",
+                f"You are an actor and renowned expert in playing different roles with styles that are given to you. You are an expert in creating natural conversations.",
                 logger,
             ),
         }
@@ -329,19 +330,28 @@ def extract_prompt_answers(full_answer: str):
     answer_4 = list(
         re.finditer("(?:D\.\s*)(?:.*?Charlie:)?(?:\s*?)(.*?)(?:_N_|$)", full_answer)
     )
-    print("DEBUG answers pre selection:", [answer_1, answer_2, answer_3, answer_4])
-    if len(answer_3) > 0 and not _contains_bad_text(answer_3[-1].group(1)):
-        answer = answer_3[-1].group(1)
-    elif len(answer_4) > 0 and not _contains_bad_text(answer_4[-1].group(1)):
-        answer = answer_4[-1].group(1)
-    elif len(answer_3) > 0:
-        answer = answer_3[-1].group(1)
-    elif len(answer_4) > 0:
-        answer = answer_4[-1].group(1)
-    elif len(answer_2) > 0 and not _contains_bad_text(answer_2[-1].group(1)):
-        answer = answer_2[-1].group(1)
-    elif len(answer_1) > 0:
-        answer = answer_1[-1].group(1)
+    sel = random.random()
+    # Due to legacy code, preferred selection index order is 2, 3, 1, 0
+    if sel < 0.3 and sel > 0.15:
+        answers = [answer_1, answer_3, answer_4, answer_2]
+    elif sel <= 0.15:
+        answers = [answer_1, answer_3, answer_2, answer_4]
+    else:
+        answers = [answer_1, answer_2, answer_3, answer_4]
+
+    print("DEBUG answers pre selection:", answers)
+    if len(answers[2]) > 0 and not _contains_bad_text(answers[2][-1].group(1)):
+        answer = answers[2][-1].group(1)
+    elif len(answers[3]) > 0 and not _contains_bad_text(answers[3][-1].group(1)):
+        answer = answers[3][-1].group(1)
+    elif len(answers[2]) > 0:
+        answer = answers[2][-1].group(1)
+    elif len(answers[3]) > 0:
+        answer = answers[3][-1].group(1)
+    elif len(answers[1]) > 0 and not _contains_bad_text(answers[1][-1].group(1)):
+        answer = answers[1][-1].group(1)
+    elif len(answers[0]) > 0:
+        answer = answers[0][-1].group(1)
     else:
         answer = full_answer
     answer = re.sub("\(.*?\)", "", answer).strip()
