@@ -19,11 +19,12 @@ interface IConversationPageProps {
     isRecording: boolean;
     setRecording(newIsRecording: boolean): void;
     isVoiceRecording: boolean;
+    isResponseAudioPlaying: boolean;
     gender: string;
     session_token: string;
 }
 
-function ConversationPage({ toolbarHeight, canInteract, sendMessageFunction, conversationMessages, showSystemMessages, isRecording, setRecording, isVoiceRecording, gender, session_token }: IConversationPageProps) {
+function ConversationPage({ toolbarHeight, canInteract, sendMessageFunction, conversationMessages, showSystemMessages, isRecording, setRecording, isVoiceRecording, isResponseAudioPlaying, gender, session_token }: IConversationPageProps) {
 
     const [messageState, setMessageState] = useState<string>("")
     const messagesEndRef = useRef<HTMLDivElement>()
@@ -88,7 +89,7 @@ function ConversationPage({ toolbarHeight, canInteract, sendMessageFunction, con
                 <Grid item xs="auto" display="flex" flexDirection="row" justifyContent="center">
                     <ToggleButton
                         value="check"
-                        color={canInteract ? (isVoiceRecording ? "success" : "primary") : "error"}
+                        color={(canInteract && !isResponseAudioPlaying) ? (isVoiceRecording ? "success" : "primary") : "error"}
                         selected={isRecording}
                         onChange={() => { setRecording(!isRecording); }}
                         disabled={!canInteract}

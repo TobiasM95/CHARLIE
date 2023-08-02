@@ -944,7 +944,7 @@ class CharlieSession:
         return h.hexdigest()
 
     def update_active_status(self):
-        if (datetime.datetime.today - self.last_update).seconds > 60 * 15:
+        if (datetime.datetime.today() - self.last_update).seconds > 60 * 15:
             self.is_active = False
         else:
             self.is_active = True

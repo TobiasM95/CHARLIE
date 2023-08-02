@@ -124,6 +124,7 @@ function MainPageM({ changeAppTheme, logOutFunc, userFirstName, userSUB }: IMain
   const [recordingCacheLength, setRecordingCacheLength] = useState<number>(0);
   const [recorder, setRecorder] = useState<RecordRTC | undefined>(undefined);
   const [isVoiceRecording, setIsVoiceRecording] = useState<boolean>(false);
+  const [isResponseAudioPlaying, setIsResponseAudioPlaying, isResponseAudioPlayingRef] = useState<boolean>(false);
 
   const [userUID] = useState<string>(userSUB);
   const [sessionKey, setSessionKey, sessionKeyRef] = useState<string>("");
@@ -354,6 +355,10 @@ function MainPageM({ changeAppTheme, logOutFunc, userFirstName, userSUB }: IMain
         const blob = new Blob([data["audio_content"]], { type: "audio/wav" });
         audio.src = URL.createObjectURL(blob);
         audio.volume = volumeSetting / 100.0;
+        audio.addEventListener('ended', function () {
+          setIsResponseAudioPlaying(false);
+        })
+        setIsResponseAudioPlaying(true);
         audio.play();
       });
 
@@ -394,7 +399,11 @@ function MainPageM({ changeAppTheme, logOutFunc, userFirstName, userSUB }: IMain
       if (isRecording) {
         recorder.stopRecording();
       }
-      recorder.destroy();
+      try {
+        recorder.destroy();
+      } catch (error) {
+        console.log("Couldn't destroy recorder");
+      }
     }
   }
 
@@ -521,7 +530,7 @@ function MainPageM({ changeAppTheme, logOutFunc, userFirstName, userSUB }: IMain
     newRecorder.startRecording();
   }
   useEffect(() => {
-    if (isRecording) {
+    if (isRecording && !isResponseAudioPlaying) {
       console.log("Start recording");
       setRecorderRef();
     }
@@ -538,7 +547,7 @@ function MainPageM({ changeAppTheme, logOutFunc, userFirstName, userSUB }: IMain
       }
 
     }
-  }, [isRecording])
+  }, [isRecording, isResponseAudioPlaying])
 
   useEffect(() => {
     if (!playRecordingSound) {
@@ -1053,6 +1062,7 @@ function MainPageM({ changeAppTheme, logOutFunc, userFirstName, userSUB }: IMain
           isRecording={isRecording}
           setRecording={setRecording}
           isVoiceRecording={isVoiceRecording}
+          isResponseAudioPlaying={isResponseAudioPlaying}
           gender={settingCharlieGenderRef.current}
           session_token={sessionToken}
         />
