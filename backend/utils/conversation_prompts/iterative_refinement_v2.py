@@ -166,7 +166,7 @@ def get_conversation_prompt_chat_gpt(
             _localize_logged(
                 language,
                 translation_model,
-                f"\nHints for a realistic conversation:\nCharlie has a personality with defined style \"{mood_style}\".\nYou can additionally invent or think up events that happened or activities that Charlie did, to make the conversation more two-sided (only Charlie, don't invent stories/events for {name}).\nBe careful to listen to the chat log and what was said.\nImportantly, ask questions to Tobi and don't only talk about yourself\n\nWith date, situation, memories, chat log and hints go ahead and replace the parts in parentheses for A, B, C, and D!",
+                f"\nHints for a realistic conversation:\nCharlie has a personality with defined style \"{mood_style}\".\nYou can additionally invent or think up events that happened or activities that Charlie did, to make the conversation more two-sided (only Charlie, don't invent stories/events for {name}).\nBe careful to listen to the chat log and what was said.\nImportantly, ask questions to Tobi and don't only talk about yourself. Asking questions is natural.\n\nWith date, situation, memories, chat log and hints go ahead and replace the parts in parentheses for A, B, C, and D!",
                 logger,
             )
             + "\n"
